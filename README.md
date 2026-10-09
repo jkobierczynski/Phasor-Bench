@@ -15,7 +15,7 @@ when it is not. Nothing else is fetched, and no data leaves the browser.
 
 ## What it does
 
-- **Schematic editor** on a snap grid: resistor, inductor, capacitor, general impedance `R + jX`,
+- **Schematic editor** on a snap grid, with zoom and pan: resistor, inductor, capacitor, general impedance `R + jX`,
   voltage source, current source, wires, named connect-points and a reference (0 V) symbol.
 - **Sources** with a selectable waveform: sine, square (block), triangle, sawtooth, pulse train with
   duty cycle, half-wave and full-wave rectified sine.
@@ -36,7 +36,7 @@ when it is not. Nothing else is fetched, and no data leaves the browser.
 - **Readings table**: voltage, current, impedance, active and reactive power per part and per
   harmonic, plus total RMS voltage, total RMS current and total power over all harmonics.
 - **SPICE netlist export** for PSpice, LTspice and ngspice.
-- **Movable and resizable panels**, a draggable column divider, and colour themes (Solarized
+- **Movable and resizable panels** in one to five columns with draggable dividers, and colour themes (Solarized
   Light/Dark, Nord, Catppuccin Latte/Frappé/Macchiato/Mocha, plus the built-in light and dark).
 
 ## Using it
@@ -63,6 +63,16 @@ handles to stretch it.
 | `Del` / `Backspace` | Delete the selected part |
 | `Esc` | Back to Select |
 | `Ctrl+Z` / `Ctrl+Y` | Undo / redo |
+| `+` / `-` | Zoom in / out |
+| `0` | Zoom back to 100% |
+| `F` | Fit the whole circuit in view |
+
+### Zoom and pan
+
+The board is a grid of 59 by 35 points; at 100% you see a quarter of it. Zoom with the buttons in
+the Schematic header, with `Ctrl` + mouse wheel (or a trackpad pinch), or with two fingers on a
+touch screen. A plain mouse wheel keeps scrolling the page. To pan, drag empty space with the
+Select tool or drag with the middle mouse button. **Fit** shows the whole circuit.
 
 ### Values
 
@@ -83,10 +93,16 @@ Note that `m` is milli and `M` is mega.
 
 ### Panels
 
-Drag a panel by the dotted grip in its top-left corner to move it to either column or to the
+The **Columns** box in the header sets the number of columns, from one to five; below them is a
+full-width strip. If you have not moved any panels, changing the number switches to a standard
+arrangement for that count. Otherwise your panels stay where they are, and panels from a column
+that disappears move to the last remaining column.
+
+Drag a panel by the dotted grip in its top-left corner to move it to any column or to the
 full-width strip underneath. Drag the hatched corner at its bottom right to resize it; panels that
-are made narrower can sit side by side. Drag the bar between the two columns to change their widths.
-Double-click a resize corner or the bar to reset it, or use **Reset panels** for everything. The
+are made narrower can sit side by side. Drag a bar between two columns to change their widths.
+Double-click a resize corner or a bar to reset it, or use **Reset panels** to restore the standard
+arrangement for the current number of columns. The
 grips, the corners and the bar also respond to the arrow keys.
 
 ### Saving
@@ -132,7 +148,7 @@ the Fourier components of the `.TRAN` results match the page's readings in magni
 - The DC part of a pulse or rectified source is solved with inductors as shorts and capacitors as
   open circuits. If the circuit cannot settle it, it is left out and the page says so.
 - Currents in wires are not shown, only currents in parts.
-- The drawing board is a fixed grid of 29 by 17 points.
+- The drawing board is a fixed grid of 59 by 35 points.
 - A SPICE netlist can be exported but not imported.
 
 ## Files
