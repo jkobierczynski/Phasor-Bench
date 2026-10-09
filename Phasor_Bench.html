@@ -1,5 +1,21 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Phasor Bench</title>
+<!--
+  Phasor Bench - schematic editor and phasor diagrams for linear AC circuits.
+  Copyright (C) 2026 Jurgen Kobierczynski
+
+  This program is free software: you can redistribute it and/or modify it under the terms of the
+  GNU General Public License as published by the Free Software Foundation, version 3.
+
+  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+  even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details. You should have received a copy of it along with this
+  program (file LICENSE). If not, see https://www.gnu.org/licenses/gpl-3.0.html
+-->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: a drafting bench of movable panels. Two columns plus a full-width strip; every panel carries a grip. */
@@ -23,7 +39,8 @@
   color-scheme:dark }
 
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.45}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.45}
 .wrap{padding-inline:clamp(16px,2vw,28px);padding-block:18px 40px;display:flex;flex-direction:column;gap:14px}
 h1{font-family:var(--font-label);font-weight:600;font-size:26px;letter-spacing:.01em;margin:0;line-height:1.1}
 h2{font-family:var(--font-label);font-weight:600;font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0}
@@ -42,13 +59,28 @@ button{font:inherit;font-family:var(--font-label);font-weight:500;font-size:14px
 button:hover{border-color:var(--muted)}
 button:disabled{opacity:.45;cursor:default}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:14px;align-items:start}
-.zone{display:flex;flex-direction:column;gap:14px;min-width:0}
-.zone-wide{grid-column:1/-1}
-@media (max-width:920px){.layout{grid-template-columns:minmax(0,1fr)}}
+.layout{--split:.608;display:grid;grid-template-columns:minmax(0,calc(var(--split)*100% - 7px)) 10px minmax(0,1fr);gap:14px 2px;align-items:start}
+.zone{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;gap:14px;min-width:0}
+.zone[data-zone=left]{grid-column:1;grid-row:1}
+.zone[data-zone=right]{grid-column:3;grid-row:1}
+.zone.zone-wide{grid-column:1/-1;grid-row:2}
+.splitter{grid-column:2;grid-row:1;align-self:stretch;min-height:60px;cursor:col-resize;touch-action:none;position:relative;border-radius:5px}
+.splitter::after{content:"";position:absolute;inset:0 3px;border-radius:2px;background:var(--line)}
+.splitter:hover::after,.splitter:focus-visible::after,.splitter.active::after{background:var(--accent)}
+.splitter:focus-visible{outline:none}
+@media (max-width:920px){.layout{grid-template-columns:minmax(0,1fr);gap:14px}.layout .zone{grid-column:1;grid-row:auto}.layout .splitter{display:none}.layout .panel.wsized{width:auto;flex:1 1 100%}}
 .layout.dragging .zone{min-height:64px;outline:1.5px dashed var(--grid);outline-offset:4px;border-radius:6px}
-.dropmark{height:6px;border-radius:3px;background:var(--accent)}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;min-width:0;display:flex;flex-direction:column}
+.dropmark{flex:0 0 100%;height:6px;border-radius:3px;background:var(--accent)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;min-width:0;display:flex;flex-direction:column;position:relative;flex:1 1 100%}
+.panel.wsized{flex:0 0 auto;width:calc(var(--w)*(100% + 14px) - 14px)}
+.panel.sized{overflow:hidden}
+.panel.sized>.grow{flex:1 1 0;min-height:0}
+.panel.sized>svg.grow,.panel.sized>#phasor{height:0;max-width:none;max-height:none}
+.panel.sized>.minis,.panel.sized>.scroll{overflow:auto}
+.panel.sized .io textarea{flex:1;min-height:40px;resize:none}
+.rz{position:absolute;right:0;bottom:0;width:18px;height:18px;padding:0;border:0;background:transparent;color:var(--muted);cursor:nwse-resize;touch-action:none;line-height:0;border-radius:0 0 5px 0}
+.rz svg{width:18px;height:18px;display:block;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round}
+.rz:hover{color:var(--accent)}
 .panel.moving{opacity:.4}
 .phead{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:8px 12px 8px 6px}
 .ptitle{display:flex;align-items:center;gap:4px}
@@ -125,7 +157,8 @@ tr.on{background:var(--accent-soft)}
 .io .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .foot{color:var(--muted);font-size:13.5px;max-width:100ch}
 </style>
-
+</head>
+<body>
 <div class="wrap">
   <header class="top">
     <div>
@@ -172,7 +205,7 @@ tr.on{background:var(--accent-soft)}
       <section class="panel" id="p-schematic" aria-label="Schematic editor">
         <div class="phead"><span class="ptitle"><button class="grip" aria-label="Move the Schematic panel"></button><h2>Schematic</h2></span><span class="dim" style="font-size:13px">Pick a part, then drag on the grid from one terminal to the other.</span></div>
         <div class="tools" id="tools" role="toolbar" aria-label="Drawing tools"></div>
-        <svg class="board" id="board" viewBox="0 0 720 432" role="application" aria-label="Schematic drawing board">
+        <svg class="board grow" id="board" viewBox="0 0 720 432" role="application" aria-label="Schematic drawing board">
           <defs><pattern id="gridp" width="24" height="24" patternUnits="userSpaceOnUse" x="-12" y="-12"><circle cx="12" cy="12" r="1" fill="var(--grid)"/></pattern></defs>
           <rect width="720" height="432" fill="url(#gridp)"/>
           <g id="layer"></g>
@@ -182,7 +215,7 @@ tr.on{background:var(--accent-soft)}
       </section>
       <section class="panel" id="p-wave" aria-label="Waveforms">
         <div class="phead"><span class="ptitle"><button class="grip" aria-label="Move the Waveforms panel"></button><h2>Waveforms</h2></span><span class="dim" style="font-size:13px" id="wcap"></span></div>
-        <svg class="plot" id="wave" viewBox="0 0 440 190" role="img" aria-label="Waveforms over two periods"></svg>
+        <svg class="plot grow" id="wave" viewBox="0 0 440 190" role="img" aria-label="Waveforms over two periods"></svg>
         <div class="time">
           <button id="play" aria-pressed="false">Rotate</button>
           <input type="range" id="theta" min="0" max="720" step="1" value="0" aria-label="Angle ωt in degrees">
@@ -190,6 +223,8 @@ tr.on{background:var(--accent-soft)}
         </div>
       </section>
     </div>
+
+    <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" aria-label="Width of the two columns" aria-valuemin="20" aria-valuemax="80" tabindex="0" title="Drag to change the width of the two columns. Double-click to reset."></div>
 
     <div class="zone" data-zone="right">
       <section class="panel" id="p-phasor" aria-label="Phasor diagram">
@@ -208,7 +243,7 @@ tr.on{background:var(--accent-soft)}
           <label class="chk" id="hsel-phasor-wrap" hidden><span class="slabel">Harmonic</span><select id="hsel-phasor" class="hsel"></select></label>
           <label class="chk" id="kclwrap" hidden><span class="slabel">Currents at</span><select id="kclnode"></select></label>
         </div>
-        <svg class="plot" id="phasor" viewBox="0 0 440 376" role="img" aria-label="Phasor diagram of the selected voltages and currents"></svg>
+        <svg class="plot grow" id="phasor" viewBox="0 0 440 376" role="img" aria-label="Phasor diagram of the selected voltages and currents"></svg>
         <p class="cap" id="pcap"></p>
         <div class="time">
           <label class="slabel" for="fsweep">Frequency</label>
@@ -233,16 +268,16 @@ tr.on{background:var(--accent-soft)}
           </span>
         </div>
         <p class="cap" id="hcap"></p>
-        <div class="minis" id="minis"></div>
+        <div class="minis grow" id="minis"></div>
       </section>
       <section class="panel" id="p-read" aria-label="Readings">
         <div class="phead"><span class="ptitle"><button class="grip" aria-label="Move the Readings panel"></button><h2>Readings</h2></span>
           <span class="pctl"><label class="chk" id="hsel-table-wrap" hidden><span class="slabel">Harmonic</span><select id="hsel-table" class="hsel"></select></label><span class="dim" style="font-size:13px">Tick a value to draw it.</span></span></div>
-        <div class="scroll"><table id="table"></table></div>
+        <div class="scroll grow"><table id="table"></table></div>
       </section>
       <section class="panel" id="p-io" aria-label="Save or load">
         <div class="phead"><span class="ptitle"><button class="grip" aria-label="Move the Save or load panel"></button><h2>Save, load, export</h2></span><span class="dim" style="font-size:13px">The circuit as text you can keep in a file, or as a SPICE netlist for PSpice, LTspice or ngspice.</span></div>
-        <div class="io">
+        <div class="io grow">
           <textarea id="io-text" spellcheck="false" aria-label="Circuit as text"></textarea>
           <div class="row"><button id="io-copy">Copy current circuit</button><button id="io-load">Load from the box</button><button id="io-spice">Export SPICE netlist</button><span class="dim" id="io-msg" role="status"></span></div>
         </div>
@@ -250,7 +285,8 @@ tr.on{background:var(--accent-soft)}
     </div>
   </div>
 
-  <p class="foot">Sine sources are entered as RMS, other waveforms as peak value; every phasor is the RMS value of one harmonic. A passive part counts U and I from its first terminal to its second, in the direction of the small arrow on its lead. A source shows what it delivers. Values accept prefixes and a decimal comma: <span style="font-family:var(--font-data);font-size:12.5px">4,7k · 100n · 2.2u · 15m</span>. Drag a panel by the dotted grip in its corner to move it; the circuit and the panel arrangement are kept in this browser.</p>
+  <p class="foot">Sine sources are entered as RMS, other waveforms as peak value; every phasor is the RMS value of one harmonic. A passive part counts U and I from its first terminal to its second, in the direction of the small arrow on its lead. A source shows what it delivers. Values accept prefixes and a decimal comma: <span style="font-family:var(--font-data);font-size:12.5px">4,7k · 100n · 2.2u · 15m</span>. Drag a panel by the dotted grip in its top corner to move it, and by the hatched corner at its bottom right to resize it; the bar between the two columns can be dragged as well. The circuit, the theme and the panel arrangement are kept in this browser.</p>
+  <p class="foot">Phasor Bench is free software under the GNU General Public License, version 3. It comes with no warranty.</p>
 </div>
 
 <script>
@@ -882,9 +918,10 @@ function waveSeries(){
   return out;
 }
 function renderWave(){
-  const svg=$('wave'), Wd=Math.max(300,Math.round(svg.parentNode.clientWidth||440)), Ht=190;
+  const svg=$('wave'), box=svg.getBoundingClientRect(), sized=svg.parentNode.classList.contains('sized');
+  const Wd=Math.max(300,Math.round(box.width||svg.parentNode.clientWidth||440)), Ht=sized?Math.max(110,Math.round(box.height)):190;
   svg.setAttribute('viewBox','0 0 '+Wd+' '+Ht);
-  const x0=60,x1=Wd-60,yT=12,yB=154,mid=(yT+yB)/2,amp=(yB-yT)/2-4,T=1/state.f;
+  const x0=60,x1=Wd-60,yT=12,yB=Ht-36,mid=(yT+yB)/2,amp=(yB-yT)/2-4,T=1/state.f;
   wg={x0,x1,yT,yB,T};
   let s='<rect x="'+x0+'" y="'+yT+'" width="'+(x1-x0)+'" height="'+(yB-yT)+'" fill="none" stroke="var(--line)"/>'+
     '<path d="M'+x0+' '+mid+'H'+x1+'" stroke="var(--grid)" fill="none"/>';
@@ -1366,18 +1403,39 @@ for(const g of layout.querySelectorAll('.grip')){
   g.title='Drag to move this panel. With the keyboard: arrow keys.';
 }
 const DEFAULT_LAYOUT={}; for(const z of zones) DEFAULT_LAYOUT[z.dataset.zone]=panelsIn(z).map(p=>p.id);
+const allPanels=[...layout.querySelectorAll('.panel')], splitter=$('splitter'), SPLIT0=0.608;
+/* w = share of the zone's width (0 = full), h = height in px (0 = as tall as the content) */
+function setSize(p,w,h){
+  if(w>0&&w<0.97){ p.style.setProperty('--w',String(Math.max(0.2,w))); p.classList.add('wsized'); } else { p.style.removeProperty('--w'); p.classList.remove('wsized'); }
+  if(h>0){ p.style.height=Math.round(clamp(h,140,4000))+'px'; p.classList.add('sized'); } else { p.style.height=''; p.classList.remove('sized'); }
+}
+const sizeOf=p=>({w:p.classList.contains('wsized')?Number(p.style.getPropertyValue('--w')):0,h:p.classList.contains('sized')?parseFloat(p.style.height):0});
+function setSplit(v){
+  if(v>0){ v=clamp(v,0.2,0.8); layout.style.setProperty('--split',String(v)); } else { v=SPLIT0; layout.style.removeProperty('--split'); }
+  splitter.setAttribute('aria-valuenow',String(Math.round(v*100)));
+}
 function applyLayout(o){
   if(!o||typeof o!=='object') return;
   for(const z of zones){ const ids=o[z.dataset.zone]; if(!Array.isArray(ids)) continue; for(const id of ids){ const p=typeof id==='string'&&/^p-[a-z]+$/.test(id)?$(id):null; if(p&&p.classList.contains('panel')) z.appendChild(p); } }
+  const sz=o.sizes&&typeof o.sizes==='object'?o.sizes:{};
+  for(const p of allPanels){ const q=sz[p.id]||{}; setSize(p,Number(q.w)||0,Number(q.h)||0); }
+  setSplit(Number(o.split)||0);
 }
-function saveLayout(){ const o={}; for(const z of zones) o[z.dataset.zone]=panelsIn(z).map(p=>p.id); try{ localStorage.setItem(LKEY,JSON.stringify(o)); }catch(_){} }
+function saveLayout(){
+  const o={sizes:{}}; for(const z of zones) o[z.dataset.zone]=panelsIn(z).map(p=>p.id);
+  for(const p of allPanels){ const q=sizeOf(p); if(q.w||q.h) o.sizes[p.id]=q; }
+  const sp=layout.style.getPropertyValue('--split'); if(sp) o.split=Number(sp);
+  try{ localStorage.setItem(LKEY,JSON.stringify(o)); }catch(_){}
+}
+setSplit(0);
 try{ applyLayout(JSON.parse(localStorage.getItem(LKEY))); }catch(_){}
 const dropmark=document.createElement('div'); dropmark.className='dropmark';
 let pd=null;
 function dropTarget(x,y){
   let best=null,bd=1e9;
   for(const z of zones){ const r=z.getBoundingClientRect(), dx=Math.max(r.left-x,0,x-r.right), dy=Math.max(r.top-y,0,y-r.bottom), d=dx*4+dy; if(d<bd){bd=d;best=z;} }
-  const before=panelsIn(best).filter(p=>p!==pd.panel).find(p=>{ const r=p.getBoundingClientRect(); return y<r.top+r.height/2; })||null;
+  const zr=best.getBoundingClientRect();
+  const before=panelsIn(best).filter(p=>p!==pd.panel).find(p=>{ const r=p.getBoundingClientRect(); if(y<r.top) return true; if(y>r.bottom) return false; return r.width<zr.width*0.8?x<r.left+r.width/2:y<r.top+r.height/2; })||null;
   return {zone:best,before};
 }
 function autoScroll(){
@@ -1413,6 +1471,49 @@ layout.addEventListener('keydown',ev=>{
   if(done){ ev.preventDefault(); grip.focus(); saveLayout(); renderWave(); }
 });
 $('resetlayout').addEventListener('click',()=>{ applyLayout(DEFAULT_LAYOUT); try{ localStorage.removeItem(LKEY); }catch(_){} renderWave(); });
+
+/* ---------- resizable panels ---------- */
+for(const p of allPanels){
+  const b=document.createElement('button'); b.className='rz'; b.id='rz-'+p.id;
+  b.setAttribute('aria-label','Resize the '+p.getAttribute('aria-label')+' panel');
+  b.title='Drag to resize this panel. Double-click to reset its size. With the keyboard: arrow keys.';
+  b.innerHTML='<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M15 6L6 15M15 10.5L10.5 15M15 14.6v.1"/></svg>';
+  p.appendChild(b);
+}
+let rz=null;
+layout.addEventListener('pointerdown',ev=>{
+  const h=ev.target.closest('.rz'); if(!h||ev.button) return;
+  ev.preventDefault(); try{ h.setPointerCapture(ev.pointerId); }catch(_){}
+  const p=h.closest('.panel'), r=p.getBoundingClientRect();
+  rz={p,x:ev.clientX,y:ev.clientY,w:r.width,h:r.height,zw:p.parentNode.getBoundingClientRect().width,ax:false,ay:false,q:sizeOf(p)};
+});
+layout.addEventListener('pointermove',ev=>{
+  if(!rz) return; const dx=ev.clientX-rz.x, dy=ev.clientY-rz.y;
+  /* an axis only starts to change once the pointer has clearly moved along it */
+  if(Math.abs(dx)>6) rz.ax=true; if(Math.abs(dy)>6) rz.ay=true;
+  setSize(rz.p,rz.ax?clamp((rz.w+dx+14)/(rz.zw+14),0.2,1):rz.q.w,rz.ay?Math.max(140,rz.h+dy):rz.q.h);
+});
+const endResize=()=>{ if(!rz) return; rz=null; saveLayout(); renderWave(); };
+layout.addEventListener('pointerup',endResize); layout.addEventListener('pointercancel',endResize);
+layout.addEventListener('dblclick',ev=>{ const h=ev.target.closest('.rz'); if(!h) return; setSize(h.closest('.panel'),0,0); saveLayout(); renderWave(); });
+layout.addEventListener('keydown',ev=>{
+  const h=ev.target.closest&&ev.target.closest('.rz'); if(!h) return;
+  const p=h.closest('.panel'), q=sizeOf(p), ht=q.h||p.getBoundingClientRect().height; let w=q.w, hh=q.h;
+  if(ev.key==='ArrowLeft') w=(q.w||1)-0.05; else if(ev.key==='ArrowRight') w=(q.w||1)+0.05;
+  else if(ev.key==='ArrowUp') hh=ht-24; else if(ev.key==='ArrowDown') hh=ht+24; else return;
+  ev.preventDefault(); setSize(p,w,hh); saveLayout(); renderWave();
+});
+let spDrag=false;
+splitter.addEventListener('pointerdown',ev=>{ if(ev.button) return; ev.preventDefault(); try{ splitter.setPointerCapture(ev.pointerId); }catch(_){} spDrag=true; splitter.classList.add('active'); });
+splitter.addEventListener('pointermove',ev=>{ if(!spDrag) return; const r=layout.getBoundingClientRect(); setSplit((ev.clientX-r.left)/r.width); });
+const endSplit=()=>{ if(!spDrag) return; spDrag=false; splitter.classList.remove('active'); saveLayout(); renderWave(); };
+splitter.addEventListener('pointerup',endSplit); splitter.addEventListener('pointercancel',endSplit);
+splitter.addEventListener('dblclick',()=>{ setSplit(0); saveLayout(); renderWave(); });
+splitter.addEventListener('keydown',ev=>{
+  const v=Number(layout.style.getPropertyValue('--split'))||SPLIT0;
+  if(ev.key==='ArrowLeft') setSplit(v-0.02); else if(ev.key==='ArrowRight') setSplit(v+0.02); else return;
+  ev.preventDefault(); saveLayout(); renderWave();
+});
 
 /* ---------- colour themes ---------- */
 /* each theme fills the same tokens as the stylesheet; p = the eight phasor colours */
@@ -1458,8 +1559,8 @@ $('theme').addEventListener('change',ev=>applyTheme(ev.target.value));
 
 window.__bench={analyse,srcPhasor,get state(){return state;},get cur(){return cur;},C};
 syncFreq(true); renderInspector(); refresh(false);
-try{ let lastW=0; new ResizeObserver(()=>{ const w=$('wave').parentNode.clientWidth; if(w!==lastW){ lastW=w; if(cur) renderWave(); } }).observe($('p-wave')); }catch(_){}
+try{ let last=''; new ResizeObserver(()=>{ const r=$('wave').getBoundingClientRect(), k=Math.round(r.width)+'x'+Math.round(r.height); if(k!==last){ last=k; if(cur) renderWave(); } }).observe($('wave')); }catch(_){}
 })();
 </script>
-
-</body></html>
+</body>
+</html>
