@@ -6,9 +6,13 @@ Draw a network of resistors, inductors and capacitors, connect it to a sinusoida
 voltage or current source, and read the voltage and current phasors of every part and every
 harmonic. Everything runs in the browser; there is nothing to install and no server.
 
+**[Try the online demo](https://jurgenkobierczynski.com/Phasor_Bench/Phasor_Bench.html)** (hosted outside this repository).
+
+![Phasor Bench](Phasor_Bench.jpg)
+
 ## Running it
 
-Open `index.html` in a current browser (Firefox, Chrome, Edge or Safari). That is all.
+Open `Phasor_Bench.html` in a current browser (Firefox, Chrome, Edge or Safari). That is all.
 
 The page loads three typefaces from Google Fonts when it is online and falls back to system fonts
 when it is not. Nothing else is fetched, and no data leaves the browser.
@@ -155,8 +159,9 @@ the Fourier components of the `.TRAN` results match the page's readings in magni
 
 | File | Contents |
 | --- | --- |
-| `index.html` | The whole application: markup, styles and script |
+| `Phasor_Bench.html` | The whole application: markup, styles and script |
 | `README.md` | This file |
+| `Phasor_Bench.jpg` | The screenshot shown above |
 | `LICENSE` | GNU General Public License, version 3 |
 
 There is no build step and there are no dependencies.
