@@ -1,0 +1,1465 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Phasor Bench</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a drafting bench of movable panels. Two columns plus a full-width strip; every panel carries a grip. */
+:root{
+  --bg:#e9edf1; --surface:#f9fafb; --board:#ffffff; --ink:#15202d; --muted:#586676; --line:#cdd5dd; --grid:#b9c3ce;
+  --accent:#b4530e; --accent-soft:#f6e3d3; --err:#b3261e;
+  --p1:#1d65b3; --p2:#c2410c; --p3:#177a48; --p4:#8a3db3; --p5:#9a6c05; --p6:#0f7f8a; --p7:#c22a63; --p8:#5a6472;
+  --font-body:"Barlow","Segoe UI",system-ui,sans-serif;
+  --font-label:"Barlow Semi Condensed","Arial Narrow","Segoe UI",sans-serif;
+  --font-data:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f151c; --surface:#161f29; --board:#111922; --ink:#e2e8ee; --muted:#93a1b0; --line:#2a3643; --grid:#3a4856;
+  --accent:#e8904a; --accent-soft:#3a2a1c; --err:#ff8a80;
+  --p1:#6fb1f5; --p2:#f58a5a; --p3:#5bd08f; --p4:#c592ee; --p5:#e3b94a; --p6:#4fcfd9; --p7:#f57aa8; --p8:#a9b4c2;
+  color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0f151c; --surface:#161f29; --board:#111922; --ink:#e2e8ee; --muted:#93a1b0; --line:#2a3643; --grid:#3a4856;
+  --accent:#e8904a; --accent-soft:#3a2a1c; --err:#ff8a80;
+  --p1:#6fb1f5; --p2:#f58a5a; --p3:#5bd08f; --p4:#c592ee; --p5:#e3b94a; --p6:#4fcfd9; --p7:#f57aa8; --p8:#a9b4c2;
+  color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.45}
+.wrap{padding-inline:clamp(16px,2vw,28px);padding-block:18px 40px;display:flex;flex-direction:column;gap:14px}
+h1{font-family:var(--font-label);font-weight:600;font-size:26px;letter-spacing:.01em;margin:0;line-height:1.1}
+h2{font-family:var(--font-label);font-weight:600;font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0}
+p{margin:0}
+.top{display:flex;flex-wrap:wrap;gap:10px 28px;align-items:flex-end;justify-content:space-between}
+.top .lede{color:var(--muted);max-width:62ch}
+.controls{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:flex-end}
+.controls{min-width:0;max-width:100%}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0;max-width:100%}
+.field>span,.slabel{font-family:var(--font-label);font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+input[type=text],select,textarea{font:inherit;font-family:var(--font-data);font-size:13px;color:var(--ink);background:var(--board);border:1px solid var(--line);border-radius:4px;padding:6px 8px;min-width:0;max-width:100%}
+input[type=text]{width:8.5em}
+input[aria-invalid=true]{border-color:var(--err)}
+input[type=range]{accent-color:var(--accent)}
+button{font:inherit;font-family:var(--font-label);font-weight:500;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:6px 10px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:14px;align-items:start}
+.zone{display:flex;flex-direction:column;gap:14px;min-width:0}
+.zone-wide{grid-column:1/-1}
+@media (max-width:920px){.layout{grid-template-columns:minmax(0,1fr)}}
+.layout.dragging .zone{min-height:64px;outline:1.5px dashed var(--grid);outline-offset:4px;border-radius:6px}
+.dropmark{height:6px;border-radius:3px;background:var(--accent)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;min-width:0;display:flex;flex-direction:column}
+.panel.moving{opacity:.4}
+.phead{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:8px 12px 8px 6px}
+.ptitle{display:flex;align-items:center;gap:4px}
+.pctl{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;min-width:0}
+.pctl select{padding:3px 6px;font-size:12px}
+.grip{cursor:grab;touch-action:none;padding:5px 6px;border-color:transparent;background:transparent;color:var(--muted);line-height:0}
+.grip:hover{border-color:var(--line)}
+.grip svg{width:10px;height:16px;fill:currentColor;display:block}
+.tools{display:flex;flex-wrap:wrap;gap:4px;padding:0 12px 10px}
+.tool{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 7px 3px;min-width:46px;font-size:12px;color:var(--muted);background:transparent}
+.tool svg{width:34px;height:18px;display:block;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.tool svg .fillc{fill:currentColor}
+.tool[aria-pressed=true]{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.board{display:block;width:100%;height:auto;max-height:78vh;background:var(--board);border-block:1px solid var(--line);touch-action:none;user-select:none;-webkit-user-select:none}
+.board .el{color:var(--ink);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.board .el.sel{color:var(--accent)}
+.board .draft{color:var(--accent);opacity:.75}
+.board .body{fill:var(--board)}
+.board .fillc{fill:currentColor}
+.board .thin{stroke-width:1.4}
+.board .ref{color:var(--muted)}
+.board text{font-family:var(--font-data);font-size:11px;fill:var(--muted);stroke:var(--board);stroke-width:3.5px;paint-order:stroke;stroke-linejoin:round}
+.board .nm{font-family:var(--font-label);font-weight:600;font-size:13.5px}
+.board .dot{fill:var(--ink);stroke:none}
+.board .pt{fill:var(--accent);stroke:var(--board);stroke-width:1.5}
+.board .handle{fill:var(--board);stroke:var(--accent);stroke-width:1.6}
+.insp{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;padding:10px 12px;min-height:62px}
+.insp .hint{color:var(--muted);align-self:center}
+.insp .kind{font-family:var(--font-label);font-weight:600;font-size:15px;align-self:center;min-width:5.5em}
+.insp .note{font-family:var(--font-data);font-size:12px;color:var(--muted);align-self:center}
+.insp .spacer{flex:1}
+.status{padding:0 12px 10px;font-size:13.5px;color:var(--muted)}
+.status.err{color:var(--err)}
+.seg{display:inline-flex}
+.seg button{border-radius:0;font-size:13px;padding:4px 9px;margin-left:-1px}
+.seg button:first-child{border-radius:4px 0 0 4px;margin-left:0}
+.seg button:last-child{border-radius:0 4px 4px 0}
+.seg button[aria-pressed=true]{color:var(--accent);border-color:var(--accent);background:var(--accent-soft);position:relative}
+.plot{display:block;width:100%;height:auto}
+#phasor{max-width:620px;max-height:78vh;margin-inline:auto}
+.plot text{font-family:var(--font-data);font-size:10.5px;fill:var(--muted)}
+.plot .lbl{font-family:var(--font-label);font-weight:600;font-size:13px}
+.plot .halo{stroke:var(--surface);stroke-width:3.5px;paint-order:stroke;stroke-linejoin:round}
+.cap{padding:2px 12px 10px;font-size:13px;color:var(--muted)}
+.cap sub{font-size:.8em}
+.time{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:8px 12px;border-top:1px solid var(--line)}
+.time input[type=range]{flex:1;min-width:120px}
+.time select{padding:3px 6px;font-size:12px}
+.time output{font-family:var(--font-data);font-size:12px;color:var(--muted)}
+#fout{flex-basis:100%;order:5}
+.minis{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(190px,44%),1fr));gap:8px;padding:0 12px 12px}
+.mini{display:flex;flex-direction:column;align-items:stretch;gap:2px;padding:6px 6px 5px;background:var(--board);text-align:left;min-width:0}
+.mini[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.mini .mt{font-family:var(--font-label);font-weight:600;font-size:13px}
+.mini .ms{font-family:var(--font-data);font-size:10.5px;color:var(--muted);min-height:1.5em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini svg{width:100%;height:auto;display:block}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-family:var(--font-data);font-size:12.5px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:5px 12px;white-space:nowrap;border-top:1px solid var(--line)}
+thead th{font-family:var(--font-label);font-weight:600;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-top:0}
+thead th sub{font-size:.85em;letter-spacing:0}
+tbody th{font-weight:400}
+td.tot,th.tot{background:color-mix(in srgb,var(--bg) 55%,transparent)}
+tr.grp th{font-family:var(--font-label);font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);background:var(--bg)}
+tr.on{background:var(--accent-soft)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:7px;vertical-align:-1px}
+.rowname{border:0;background:none;padding:0;font-family:var(--font-label);font-weight:600;font-size:14px;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.tag{font-family:var(--font-label);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:0 4px;margin-left:6px}
+.chk{display:inline-flex;gap:7px;align-items:center;cursor:pointer}
+.chk input{accent-color:var(--accent);margin:0}
+.dim{color:var(--muted)}
+.io{display:flex;flex-direction:column;gap:8px;padding:0 12px 12px}
+.io textarea{width:100%;min-height:90px;resize:vertical;font-size:12px}
+.io .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.foot{color:var(--muted);font-size:13.5px;max-width:100ch}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Phasor Bench</h1>
+      <p class="lede">Draw a network of R, L and C, feed it a sine, block, sawtooth or other periodic source, and read the voltage and current phasors of every harmonic.</p>
+    </div>
+    <div class="controls">
+      <label class="field"><span>Frequency (Hz)</span><input type="text" id="freq" inputmode="decimal" autocomplete="off"></label>
+      <label class="field"><span>Example</span>
+        <select id="example">
+          <option value="">Load an example…</option>
+          <option value="series">Series RLC</option>
+          <option value="parallel">Parallel RLC on a current source</option>
+          <option value="pfc">Power-factor correction</option>
+          <option value="rc">RC low-pass at cut-off</option>
+          <option value="sq">Square wave on an RC low-pass</option>
+          <option value="third">Square wave on a circuit tuned to the 3rd harmonic</option>
+          <option value="saw">Sawtooth current into a parallel RLC</option>
+        </select>
+      </label>
+      <label class="field"><span>Theme</span>
+        <select id="theme">
+          <option value="system">Follow system</option>
+          <option value="bench-light">Bench Light</option>
+          <option value="bench-dark">Bench Dark</option>
+          <option value="sol-light">Solarized Light</option>
+          <option value="sol-dark">Solarized Dark</option>
+          <option value="nord">Nord</option>
+          <option value="cat-latte">Catppuccin Latte</option>
+          <option value="cat-frappe">Catppuccin Frappé</option>
+          <option value="cat-macchiato">Catppuccin Macchiato</option>
+          <option value="cat-mocha">Catppuccin Mocha</option>
+        </select>
+      </label>
+      <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
+      <button id="redo" title="Redo (Ctrl+Y)">Redo</button>
+      <button id="clear">Clear board</button>
+      <button id="resetlayout" title="Put every panel back in its original place">Reset panels</button>
+    </div>
+  </header>
+
+  <div class="layout" id="layout">
+    <div class="zone" data-zone="left">
+      <section class="panel" id="p-schematic" aria-label="Schematic editor">
+        <div class="phead"><span class="ptitle"><button class="grip" aria-label="Move the Schematic panel"></button><h2>Schematic</h2></span><span class="dim" style="font-size:13px">Pick a part, then drag on the grid from one terminal to the other.</span></div>
+        <div class="tools" id="tools" role="toolbar" aria-label="Drawing tools"></div>
+        <svg class="board" id="board" viewBox="0 0 720 432" role="application" aria-label="Schematic drawing board">
+          <defs><pattern id="gridp" width="24" height="24" patternUnits="userSpaceOnUse" x="-12" y="-12"><circle cx="12" cy="12" r="1" fill="var(--grid)"/></pattern></defs>
+          <rect width="720" height="432" fill="url(#gridp)"/>
+          <g id="layer"></g>
+        </svg>
+        <div class="insp" id="insp"></div>
+        <p class="status" id="status" role="status"></p>
+      </section>
+      <section class="panel" id="p-wave" aria-label="Waveforms">
+        <div class="phead"><span class="ptitle"><button class="grip" aria-label="Move the Waveforms panel"></button><h2>Waveforms</h2></span><span class="dim" style="font-size:13px" id="wcap"></span></div>
+        <svg class="plot" id="wave" viewBox="0 0 440 190" role="img" aria-label="Waveforms over two periods"></svg>
+        <div class="time">
+          <button id="play" aria-pressed="false">Rotate</button>
+          <input type="range" id="theta" min="0" max="720" step="1" value="0" aria-label="Angle ωt in degrees">
+          <output id="tout" for="theta"></output>
+        </div>
+      </section>
+    </div>
+
+    <div class="zone" data-zone="right">
+      <section class="panel" id="p-phasor" aria-label="Phasor diagram">
+        <div class="phead">
+          <span class="ptitle"><button class="grip" aria-label="Move the Phasor diagram panel"></button><h2>Phasor diagram</h2></span>
+          <span class="pctl">
+            <span class="seg" role="group" aria-label="What to draw">
+              <button id="show-both" aria-pressed="true">U + I</button><button id="show-U" aria-pressed="false">U</button><button id="show-I" aria-pressed="false">I</button>
+            </span>
+            <span class="seg" role="group" aria-label="Diagram layout">
+              <button id="mode-origin" aria-pressed="true">From origin</button><button id="mode-topo" aria-pressed="false">Tip to tail</button>
+            </span>
+          </span>
+        </div>
+        <div class="pctl" style="padding:0 12px 6px">
+          <label class="chk" id="hsel-phasor-wrap" hidden><span class="slabel">Harmonic</span><select id="hsel-phasor" class="hsel"></select></label>
+          <label class="chk" id="kclwrap" hidden><span class="slabel">Currents at</span><select id="kclnode"></select></label>
+        </div>
+        <svg class="plot" id="phasor" viewBox="0 0 440 376" role="img" aria-label="Phasor diagram of the selected voltages and currents"></svg>
+        <p class="cap" id="pcap"></p>
+        <div class="time">
+          <label class="slabel" for="fsweep">Frequency</label>
+          <input type="range" id="fsweep" min="-1000" max="1000" step="1" value="0">
+          <label class="chk"><span class="slabel">Range</span>
+            <select id="fspan"><option value="0.5">1 decade</option><option value="1" selected>2 decades</option><option value="2">4 decades</option></select></label>
+          <label class="chk"><input type="checkbox" id="paths" checked><span>Tip paths</span></label>
+          <output id="fout" for="fsweep"></output>
+        </div>
+      </section>
+    </div>
+
+    <div class="zone zone-wide" data-zone="bottom">
+      <section class="panel" id="p-harm" aria-label="Harmonics">
+        <div class="phead">
+          <span class="ptitle"><button class="grip" aria-label="Move the Harmonics panel"></button><h2>Harmonics</h2></span>
+          <span class="pctl">
+            <label class="slabel" for="nh">Highest harmonic</label>
+            <input type="range" id="nh" min="1" max="25" step="1" value="9" style="width:150px">
+            <output id="nhout" for="nh" style="font-family:var(--font-data);font-size:12px;min-width:2ch"></output>
+            <label class="chk"><input type="checkbox" id="common"><span>Same scale for all</span></label>
+          </span>
+        </div>
+        <p class="cap" id="hcap"></p>
+        <div class="minis" id="minis"></div>
+      </section>
+      <section class="panel" id="p-read" aria-label="Readings">
+        <div class="phead"><span class="ptitle"><button class="grip" aria-label="Move the Readings panel"></button><h2>Readings</h2></span>
+          <span class="pctl"><label class="chk" id="hsel-table-wrap" hidden><span class="slabel">Harmonic</span><select id="hsel-table" class="hsel"></select></label><span class="dim" style="font-size:13px">Tick a value to draw it.</span></span></div>
+        <div class="scroll"><table id="table"></table></div>
+      </section>
+      <section class="panel" id="p-io" aria-label="Save or load">
+        <div class="phead"><span class="ptitle"><button class="grip" aria-label="Move the Save or load panel"></button><h2>Save, load, export</h2></span><span class="dim" style="font-size:13px">The circuit as text you can keep in a file, or as a SPICE netlist for PSpice, LTspice or ngspice.</span></div>
+        <div class="io">
+          <textarea id="io-text" spellcheck="false" aria-label="Circuit as text"></textarea>
+          <div class="row"><button id="io-copy">Copy current circuit</button><button id="io-load">Load from the box</button><button id="io-spice">Export SPICE netlist</button><span class="dim" id="io-msg" role="status"></span></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <p class="foot">Sine sources are entered as RMS, other waveforms as peak value; every phasor is the RMS value of one harmonic. A passive part counts U and I from its first terminal to its second, in the direction of the small arrow on its lead. A source shows what it delivers. Values accept prefixes and a decimal comma: <span style="font-family:var(--font-data);font-size:12.5px">4,7k · 100n · 2.2u · 15m</span>. Drag a panel by the dotted grip in its corner to move it; the circuit and the panel arrangement are kept in this browser.</p>
+</div>
+
+<script>
+(function(){
+'use strict';
+const G=24, COLS=30, ROWS=18, W=COLS*G, H=ROWS*G, SQ2=Math.SQRT2, NHMAX=25;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+/* ---------- complex numbers ---------- */
+const C={
+  add:(a,b)=>[a[0]+b[0],a[1]+b[1]], sub:(a,b)=>[a[0]-b[0],a[1]-b[1]],
+  mul:(a,b)=>[a[0]*b[0]-a[1]*b[1],a[0]*b[1]+a[1]*b[0]],
+  div:(a,b)=>{const d=b[0]*b[0]+b[1]*b[1];return [(a[0]*b[0]+a[1]*b[1])/d,(a[1]*b[0]-a[0]*b[1])/d];},
+  abs:a=>Math.hypot(a[0],a[1]), conj:a=>[a[0],-a[1]], neg:a=>[-a[0],-a[1]],
+  polar:(m,deg)=>[m*Math.cos(deg*Math.PI/180),m*Math.sin(deg*Math.PI/180)],
+  arg:a=>Math.atan2(a[1],a[0])*180/Math.PI
+};
+
+/* ---------- number formatting ---------- */
+const PRE=[[1e9,'G'],[1e6,'M'],[1e3,'k'],[1,''],[1e-3,'m'],[1e-6,'µ'],[1e-9,'n'],[1e-12,'p']];
+const minus=s=>String(s).replace(/-/g,'−');
+function si(x,unit,digits){
+  if(!isFinite(x)) return '∞ '+unit;
+  const ax=Math.abs(x); if(ax<1e-15) return '0 '+unit;
+  for(const [m,p] of PRE) if(ax>=m*0.9995) return minus(parseFloat((x/m).toPrecision(digits||3)))+' '+p+unit;
+  return minus(x.toExponential(2))+' '+unit;
+}
+function siPlain(x){
+  if(!x) return '0'; const ax=Math.abs(x);
+  for(const [m,p] of PRE) if(ax>=m*0.9995) return parseFloat((x/m).toPrecision(6))+p;
+  return String(x);
+}
+function parseSI(s){
+  const m=/^\s*([-+−]?(?:\d+[.,]?\d*|[.,]\d+)(?:[eE][-+]?\d+)?)\s*([GMkmuµnp]?)/.exec(String(s));
+  if(!m) return NaN;
+  const n=parseFloat(m[1].replace(',','.').replace('−','-'));
+  return n*{G:1e9,M:1e6,k:1e3,'':1,m:1e-3,u:1e-6,'µ':1e-6,n:1e-9,p:1e-12}[m[2]];
+}
+const parseNum=s=>parseFloat(String(s).replace(',','.').replace('−','-'));
+const deg=a=>minus((Math.round(a*10)/10+0).toFixed(1))+'°';
+function polar(z,unit,scale){
+  const m=C.abs(z);
+  if(m<=(scale||0)*1e-9||m<1e-15) return '0 '+unit;
+  return si(m,unit)+' ∠ '+deg(C.arg(z));
+}
+
+/* ---------- model ---------- */
+const TYPES={
+  R:{label:'Resistor',prefix:'R'}, L:{label:'Inductor',prefix:'L'}, C:{label:'Capacitor',prefix:'C'}, Z:{label:'Impedance',prefix:'Z'},
+  V:{label:'Voltage source',prefix:'E'}, I:{label:'Current source',prefix:'J'},
+  wire:{label:'Wire'}, node:{label:'Connect-point'}, gnd:{label:'Reference (0 V)'}
+};
+const WAVES={sine:'Sine',square:'Square (block)',triangle:'Triangle',saw:'Sawtooth',pulse:'Pulse train',half:'Half-wave rectified sine',full:'Full-wave rectified sine'};
+const WSHORT={square:'square',triangle:'triangle',saw:'sawtooth',pulse:'pulse',half:'half-wave',full:'full-wave'};
+const DEFAULTS={R:{v:100},L:{v:0.1},C:{v:10e-6},Z:{r:10,x:10},V:{v:230,ph:0},I:{v:1,ph:0}};
+const two=e=>e.type!=='node'&&e.type!=='gnd';
+const isBranch=e=>two(e)&&e.type!=='wire';
+const isSrc=e=>e.type==='V'||e.type==='I';
+const isSine=e=>!e.wave||e.wave==='sine';
+
+function ex(f,nh,list){
+  let id=1;
+  return {f,nh,nextId:list.length+1,els:list.map(a=>Object.assign({id:id++,type:a[0],name:a[1],x1:a[2],y1:a[3],x2:a[4]==null?a[2]:a[4],y2:a[5]==null?a[3]:a[5]},a[6]||{}))};
+}
+const seriesLayout=(src,r,l,c)=>[['V','E1',5,5,5,13,src],['wire','',5,5,8,5],['node','A',6,5],['R','R1',8,5,12,5,{v:r}],
+    ['wire','',12,5,14,5],['node','B',13,5],['L','L1',14,5,18,5,{v:l}],['wire','',18,5,20,5],['node','C',19,5],
+    ['C','C1',20,5,24,5,{v:c}],['wire','',24,5,24,13],['wire','',24,13,5,13],['gnd','',14,13]];
+const parallelLayout=(src,r,l,c)=>[['I','J1',5,13,5,5,src],['wire','',5,5,23,5],['wire','',5,13,23,13],['node','A',8,5],
+    ['R','R1',11,5,11,13,{v:r}],['L','L1',17,5,17,13,{v:l}],['C','C1',23,5,23,13,{v:c}],['gnd','',8,13]];
+const rcLayout=(src)=>[['V','E1',6,5,6,12,src],['wire','',6,5,10,5],['node','in',8,5],['R','R1',10,5,14,5,{v:1600}],
+    ['wire','',14,5,20,5],['node','out',20,5],['C','C1',18,5,18,12,{v:100e-9}],['wire','',6,12,18,12],['gnd','',12,12]];
+const EXAMPLES={
+  series:()=>ex(50,9,seriesLayout({v:230,ph:0},40,0.2,100e-6)),
+  parallel:()=>ex(50,9,parallelLayout({v:1,ph:0},100,0.5,10e-6)),
+  pfc:()=>ex(50,9,[['V','E1',5,5,5,13,{v:230,ph:0}],['wire','',5,5,8,5],['R','R1',8,5,12,5,{v:1}],['wire','',12,5,22,5],
+    ['node','A',14,5],['C','C1',17,5,17,13,{v:68e-6}],['Z','Z1',22,5,22,13,{r:20,x:30}],['wire','',22,13,5,13],['gnd','',11,13]]),
+  rc:()=>ex(1000,9,rcLayout({v:10,ph:0})),
+  sq:()=>ex(1000,15,rcLayout({v:10,ph:0,wave:'square'})),
+  third:()=>ex(50,9,seriesLayout({v:10,ph:0,wave:'square'},20,0.2,5.63e-6)),
+  saw:()=>ex(50,11,parallelLayout({v:1,ph:0,wave:'saw'},200,0.5,10e-6))
+};
+
+function sanitize(o){
+  if(!o||typeof o!=='object'||!Array.isArray(o.els)) return null;
+  const f=Number(o.f), nh=Math.round(Number(o.nh));
+  const out={f:f>0&&isFinite(f)?f:50,nh:nh>=1&&nh<=NHMAX?nh:9,els:[],nextId:1};
+  for(const e of o.els){
+    if(!e||!TYPES[e.type]) continue;
+    const n={id:out.nextId++,type:e.type,name:String(e.name==null?'':e.name).slice(0,12)};
+    for(const k of ['x1','y1','x2','y2']){ let v=Math.round(Number(e[k])); if(!isFinite(v)) v=NaN; n[k]=v; }
+    if(!two(n)){n.x2=n.x1;n.y2=n.y1;}
+    if([n.x1,n.x2].some(v=>!(v>=1&&v<=COLS-1))||[n.y1,n.y2].some(v=>!(v>=1&&v<=ROWS-1))) continue;
+    if(two(n)&&n.x1===n.x2&&n.y1===n.y2) continue;
+    for(const k of ['v','ph','r','x']) if(e[k]!=null&&isFinite(Number(e[k]))) n[k]=Number(e[k]);
+    if(DEFAULTS[n.type]) for(const k in DEFAULTS[n.type]) if(n[k]==null) n[k]=DEFAULTS[n.type][k];
+    if(isSrc(n)&&WAVES[e.wave]&&e.wave!=='sine'){ n.wave=e.wave; if(e.wave==='pulse'){ const d=Number(e.duty); n.duty=d>0&&d<1?d:0.25; } }
+    for(const k of ['hideU','hideI','hide']) if(e[k]) n[k]=true;
+    out.els.push(n);
+  }
+  return out;
+}
+
+const KEY='phasor-bench-v1', LKEY='phasor-bench-layout-v1';
+let state=null;
+try{ state=sanitize(JSON.parse(localStorage.getItem(KEY))); }catch(_){ state=null; }
+if(!state||!state.els.length) state=EXAMPLES.series();
+const ui={tool:'select',sel:null,drag:null,mode:'origin',show:'both',h:1,kcl:null,theta:0,playing:false,fc:state.f,span:1,paths:true,hold:null,common:false};
+const history=[], future=[];
+let cur=null; /* last analysis of all harmonics */
+
+const byId=id=>state.els.find(e=>e.id===id)||null;
+function pushUndo(snap){ history.push(snap||JSON.stringify(state)); if(history.length>100) history.shift(); future.length=0; }
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(_){} }
+function nextName(type){
+  if(type==='node'){
+    const used=new Set(state.els.filter(e=>e.type==='node').map(e=>e.name));
+    for(let i=0;i<26;i++){const c=String.fromCharCode(65+i); if(!used.has(c)) return c;}
+    for(let i=1;;i++) if(!used.has('N'+i)) return 'N'+i;
+  }
+  const p=TYPES[type].prefix; if(!p) return '';
+  const used=new Set(state.els.map(e=>e.name));
+  for(let i=1;;i++) if(!used.has(p+i)) return p+i;
+}
+
+/* ---------- Fourier series of the source waveforms ---------- */
+const wrap=t=>{ t=(t+Math.PI)%(2*Math.PI); if(t<0) t+=2*Math.PI; return t-Math.PI; };
+/* unit shape g(θ), θ = ωt + phase. Everything is referred to cos θ, like the phasors. */
+function shapeFn(e){
+  const d=e.duty||0.25;
+  switch(e.wave){
+    case 'square': return t=>Math.cos(t)>=0?1:-1;
+    case 'triangle': return t=>1-2*Math.abs(wrap(t))/Math.PI;
+    case 'saw': return t=>wrap(t)/Math.PI;
+    case 'pulse': return t=>Math.abs(wrap(t))<Math.PI*d?1:0;
+    case 'half': return t=>Math.max(Math.cos(t),0);
+    case 'full': return t=>Math.abs(Math.cos(t));
+  }
+  return t=>SQ2*Math.cos(t);
+}
+const fcache=new Map();
+/* c[0] = mean value, c[k] = RMS phasor of harmonic k, both per unit of the entered value */
+function coeffs(e){
+  if(isSine(e)){ const c=[]; for(let k=0;k<=NHMAX;k++) c.push(k===1?[1,0]:[0,0]); return c; }
+  const key=e.wave+'|'+(e.wave==='pulse'?e.duty:''); let c=fcache.get(key); if(c) return c;
+  const M=4096, g=shapeFn(e), th=new Float64Array(M), gv=new Float64Array(M);
+  for(let m=0;m<M;m++){ th[m]=-Math.PI+2*Math.PI*(m+0.5)/M; gv[m]=g(th[m]); }
+  c=[];
+  for(let k=0;k<=NHMAX;k++){
+    let a=0,b=0; for(let m=0;m<M;m++){ a+=gv[m]*Math.cos(k*th[m]); b+=gv[m]*Math.sin(k*th[m]); }
+    let v=k===0?[a/M,0]:[a*2/M/SQ2,-b*2/M/SQ2];
+    if(Math.abs(v[0])<1e-9) v[0]=0; if(Math.abs(v[1])<1e-9) v[1]=0;
+    c.push(v);
+  }
+  fcache.set(key,c); return c;
+}
+function srcPhasor(e,k){
+  const c=coeffs(e)[k]; if(!c) return [0,0];
+  if(k===0) return [e.v*c[0],0];
+  return C.mul(c,C.polar(e.v,k*e.ph));
+}
+
+/* ---------- analysis: complex modified nodal analysis, one harmonic at a time ---------- */
+function onSeg(px,py,e){
+  if((e.x2-e.x1)*(py-e.y1)-(e.y2-e.y1)*(px-e.x1)!==0) return false;
+  return px>=Math.min(e.x1,e.x2)&&px<=Math.max(e.x1,e.x2)&&py>=Math.min(e.y1,e.y2)&&py<=Math.max(e.y1,e.y2);
+}
+function csolve(A,b){
+  const n=b.length; let scale=0;
+  for(const r of A) for(const v of r) scale=Math.max(scale,Math.hypot(v[0],v[1]));
+  for(let c=0;c<n;c++){
+    let p=c,best=0;
+    for(let r=c;r<n;r++){const m=Math.hypot(A[r][c][0],A[r][c][1]); if(m>best){best=m;p=r;}}
+    if(best<=scale*1e-13) return null;
+    let t=A[c];A[c]=A[p];A[p]=t; t=b[c];b[c]=b[p];b[p]=t;
+    for(let r=c+1;r<n;r++){
+      const f=C.div(A[r][c],A[c][c]); if(!f[0]&&!f[1]) continue;
+      for(let k=c;k<n;k++) A[r][k]=C.sub(A[r][k],C.mul(f,A[c][k]));
+      b[r]=C.sub(b[r],C.mul(f,b[c]));
+    }
+  }
+  const x=new Array(n);
+  for(let r=n-1;r>=0;r--){ let s=b[r]; for(let k=r+1;k<n;k++) s=C.sub(s,C.mul(A[r][k],x[k])); x[r]=C.div(s,A[r][r]); }
+  return x;
+}
+function impedance(e,w){
+  switch(e.type){
+    case 'R': return [e.v,0];
+    case 'L': return [0,w*e.v];
+    case 'C': return e.v>0&&w>0?[0,-1/(w*e.v)]:null;   /* null = open circuit */
+    case 'Z': return w>0?[e.r,e.x]:[e.r,0];
+  }
+  return null;
+}
+function analyse(st,k){
+  if(k==null) k=1;
+  const els=st.els, w=2*Math.PI*st.f*k;
+  const parent=new Map(), key=(x,y)=>x+','+y;
+  const find=q=>{let r=q; while(parent.get(r)!==r) r=parent.get(r); while(parent.get(q)!==r){const n=parent.get(q);parent.set(q,r);q=n;} return r;};
+  const add=q=>{ if(!parent.has(q)) parent.set(q,q); };
+  const union=(a,b)=>{a=find(a);b=find(b); if(a!==b) parent.set(a,b);};
+  for(const e of els){ add(key(e.x1,e.y1)); if(two(e)) add(key(e.x2,e.y2)); }
+  const pts=[...parent.keys()].map(q=>q.split(',').map(Number));
+  for(const e of els) if(e.type==='wire'){
+    const a=key(e.x1,e.y1); union(a,key(e.x2,e.y2));
+    for(const p of pts) if(onSeg(p[0],p[1],e)) union(key(p[0],p[1]),a);
+  }
+  const idx=new Map(); let n=0;
+  const nodeOf=(x,y)=>{const r=find(key(x,y)); if(!idx.has(r)) idx.set(r,n++); return idx.get(r);};
+  const branches=[], marks=[];
+  for(const e of els){
+    if(isBranch(e)) branches.push({e,a:nodeOf(e.x1,e.y1),b:nodeOf(e.x2,e.y2)});
+    else if(!two(e)) marks.push({e,n:nodeOf(e.x1,e.y1)});
+  }
+  const out={ok:false,msg:'',notes:[],res:new Map(),marks,branches,nodeV:()=>[0,0],maxU:0,maxI:0};
+  if(!branches.length){ out.msg='The board has no parts yet. Pick a part above and drag on the grid.'; return out; }
+
+  const comp=[...Array(n).keys()];
+  const cf=i=>{while(comp[i]!==i){comp[i]=comp[comp[i]];i=comp[i];}return i;};
+  const touched=new Array(n).fill(false), grounded=new Array(n).fill(false);
+  for(const br of branches){ if(br.a===br.b) continue; touched[br.a]=touched[br.b]=true; comp[cf(br.a)]=cf(br.b); }
+  const hasG=new Set();
+  for(const m of marks) if(m.e.type==='gnd'){ grounded[m.n]=true; if(touched[m.n]) hasG.add(cf(m.n)); }
+  const order=branches.filter(b=>b.e.type==='V').concat(branches.filter(b=>b.e.type==='I'),branches.filter(b=>!isSrc(b.e)));
+  for(const br of order){
+    if(br.a===br.b) continue; const root=cf(br.a); if(hasG.has(root)) continue;
+    grounded[br.e.type==='I'?br.a:br.b]=true; hasG.add(root);
+    if(br.e.type==='V') out.notes.push('No reference on this part of the circuit, so the − terminal of '+br.e.name+' is taken as 0 V.');
+    else if(br.e.type==='I') out.notes.push('No reference on this part of the circuit, so the tail terminal of '+br.e.name+' is taken as 0 V.');
+  }
+  out.grounded=grounded;
+  const u=new Array(n).fill(-1); let m=0;
+  for(let i=0;i<n;i++) if(touched[i]&&!grounded[i]) u[i]=m++;
+  for(const br of branches){
+    br.k=-1; if(br.a===br.b) continue;
+    br.z=impedance(br.e,w);
+    if(br.e.type==='V'||(br.e.type!=='I'&&br.z&&C.abs(br.z)<1e-9)) br.k=m++;
+  }
+  const A=[], rhs=[];
+  for(let i=0;i<m;i++){ A.push(Array.from({length:m},()=>[0,0])); rhs.push([0,0]); }
+  const ad=(r,c,v)=>{ if(r<0||c<0) return; A[r][c]=C.add(A[r][c],v); };
+  let sources=0;
+  for(const br of branches){
+    if(br.a===br.b) continue;
+    const a=u[br.a], b=u[br.b], e=br.e;
+    if(e.type==='I'){ const J=srcPhasor(e,k); sources++; if(a>=0) rhs[a]=C.sub(rhs[a],J); if(b>=0) rhs[b]=C.add(rhs[b],J); }
+    else if(br.k>=0){
+      ad(a,br.k,[1,0]); ad(b,br.k,[-1,0]); ad(br.k,a,[1,0]); ad(br.k,b,[-1,0]);
+      if(e.type==='V'){ rhs[br.k]=srcPhasor(e,k); sources++; }
+    } else if(br.z){
+      const y=C.div([1,0],br.z); ad(a,a,y); ad(b,b,y); ad(a,b,C.neg(y)); ad(b,a,C.neg(y));
+    }
+  }
+  const x=csolve(A,rhs);
+  if(!x){ out.msg='This circuit has no single solution. Check for a current source without a return path, voltage sources in a closed loop, or a source that is short-circuited.'; return out; }
+  const V=i=>u[i]>=0?x[u[i]]:[0,0];
+  out.nodeV=V; out.ok=true;
+  for(const br of branches){
+    const e=br.e, Va=V(br.a), Vb=V(br.b); let r;
+    if(br.a===br.b){
+      r={U:[0,0],I:[0,0],lo:Vb,Z:impedance(e,w),src:isSrc(e),shorted:true};
+      out.notes.push(e.name+' has both terminals on the same node, so it carries nothing.');
+    } else if(e.type==='V'){ r={U:C.sub(Va,Vb),I:C.neg(x[br.k]),lo:Vb,Z:null,src:true}; }
+    else if(e.type==='I'){ r={U:C.sub(Vb,Va),I:srcPhasor(e,k),lo:Va,Z:null,src:true}; }
+    else { const U=C.sub(Va,Vb); r={U,I:br.k>=0?x[br.k]:(br.z?C.div(U,br.z):[0,0]),lo:Vb,Z:br.z,src:false}; }
+    r.S=C.mul(r.U,C.conj(r.I));
+    out.maxU=Math.max(out.maxU,C.abs(r.U)); out.maxI=Math.max(out.maxI,C.abs(r.I));
+    out.res.set(e.id,r);
+  }
+  for(let i=0;i<n;i++) out.maxU=Math.max(out.maxU,C.abs(V(i)));
+  if(!sources) out.notes.push('There is no source yet, so every reading is zero.');
+  return out;
+}
+/* every harmonic that at least one source contains, each solved on its own (superposition) */
+function solveAll(){
+  const N=state.nh, srcs=state.els.filter(e=>isBranch(e)&&isSrc(e));
+  const multi=srcs.some(e=>!isSine(e));
+  const ks=[];
+  for(let k=0;k<=N;k++) if(srcs.some(e=>C.abs(srcPhasor(e,k))>0)) ks.push(k);
+  if(!ks.some(k=>k>=1)){ ks.push(1); ks.sort((a,b)=>a-b); }
+  const Hs=[], extra=[];
+  for(const k of ks){
+    const an=analyse(state,k);
+    if(an.ok){ Hs.push({k,an}); continue; }
+    if(k===0&&state.els.some(isBranch)){ extra.push('The DC part of the source cannot be settled in this circuit (a capacitor isolates a node, or a current source has no DC path), so it is left out.'); continue; }
+    cur={ok:false,msg:an.msg,H:[],multi,notes:[],skipped:[]}; return;
+  }
+  const base=Hs.find(o=>o.k>=1).an, skipped=[];
+  if(multi) for(let k=1;k<=N;k++) if(ks.indexOf(k)<0) skipped.push(k);
+  cur={ok:true,msg:'',H:Hs,base,multi,notes:base.notes.concat(extra),skipped};
+  if(!Hs.some(o=>o.k===ui.h)) ui.h=Hs.find(o=>o.k>=1).k;
+}
+const curAn=()=>cur.H.find(o=>o.k===ui.h).an;
+
+/* ---------- schematic symbols ---------- */
+function waveGlyph(wave,c){
+  switch(wave){
+    case 'square': return 'M'+(c-7)+' 4V-4H'+c+'V4H'+(c+7)+'V-4';
+    case 'triangle': return 'M'+(c-8)+' 4L'+(c-4)+' -4L'+(c+2)+' 4L'+(c+8)+' -4';
+    case 'saw': return 'M'+(c-8)+' 4L'+c+' -4V4L'+(c+8)+' -4';
+    case 'pulse': return 'M'+(c-8)+' 4H'+(c-3)+'V-4H'+(c+1)+'V4H'+(c+8);
+    case 'half': return 'M'+(c-8)+' 3q4 -12 8 0H'+(c+8);
+    case 'full': return 'M'+(c-8)+' 3q4 -12 8 0q4 -12 8 0';
+  }
+  return 'M'+(c-7)+' 0q3.5 -9 7 0t7 0';
+}
+function sym(type,len,wave){
+  const c=len/2;
+  switch(type){
+    case 'wire': return '<path d="M0 0H'+len+'"/>';
+    case 'R': case 'Z': { const b=Math.min(20,c); return '<path d="M0 0H'+(c-b)+'M'+(c+b)+' 0H'+len+'"/><rect class="body" x="'+(c-b)+'" y="-8" width="'+2*b+'" height="16"/>'; }
+    case 'L': { const b=Math.min(20,c), r=b/4; let d='M0 0H'+(c-b); for(let i=0;i<4;i++) d+='a'+r+' '+r+' 0 0 1 '+2*r+' 0'; return '<path d="'+d+'H'+len+'"/>'; }
+    case 'C': { const g=Math.min(4,c); return '<path d="M0 0H'+(c-g)+'M'+(c+g)+' 0H'+len+'M'+(c-g)+' -12V12M'+(c+g)+' -12V12"/>'; }
+    case 'V': { const r=Math.min(14,c); return '<path d="M0 0H'+(c-r)+'M'+(c+r)+' 0H'+len+'"/><circle class="body" cx="'+c+'" cy="0" r="'+r+'"/><path class="thin" d="'+waveGlyph(wave,c)+'"/><path class="thin" d="M'+(c-r-8)+' -12v6m-3 -3h6"/>'; }
+    case 'I': { const r=Math.min(14,c); return '<path d="M0 0H'+(c-r)+'M'+(c+r)+' 0H'+len+'"/><circle class="body" cx="'+c+'" cy="0" r="'+r+'"/><path d="M'+(c-8)+' 0H'+(c+4)+'"/><path class="fillc" d="M'+(c+9)+' 0l-7 -4v8z"/>'; }
+  }
+  return '';
+}
+function gndSym(x,y){ return '<path d="M'+x+' '+y+'v9M'+(x-9)+' '+(y+9)+'h18M'+(x-6)+' '+(y+13)+'h12M'+(x-3)+' '+(y+17)+'h6"/>'; }
+function valueText(e){
+  switch(e.type){
+    case 'R': return si(e.v,'Ω'); case 'L': return si(e.v,'H'); case 'C': return si(e.v,'F');
+    case 'Z': return minus(parseFloat(e.r.toPrecision(4)))+(e.x<0?' − j':' + j')+parseFloat(Math.abs(e.x).toPrecision(4))+' Ω';
+    case 'V': case 'I': { const u=e.type==='V'?'V':'A';
+      return isSine(e)?si(e.v,u)+' ∠ '+deg(e.ph):si(e.v,u)+' pk '+WSHORT[e.wave]+(e.ph?' ∠ '+deg(e.ph):''); }
+  }
+  return '';
+}
+function colorOf(e){ const i=state.els.filter(isBranch).indexOf(e); return 'var(--p'+((i%8+8)%8+1)+')'; }
+
+function drawEl(e,cls){
+  const x1=e.x1*G,y1=e.y1*G,x2=e.x2*G,y2=e.y2*G;
+  if(e.type==='gnd') return '<g class="el '+cls+'">'+gndSym(x1,y1)+'</g>';
+  if(e.type==='node') return '<g class="el '+cls+'"><circle class="pt" cx="'+x1+'" cy="'+y1+'" r="4.5"/><text class="nm" x="'+(x1+7)+'" y="'+(y1-8)+'" style="fill:var(--accent)">'+esc(e.name)+'</text></g>';
+  const len=Math.hypot(x2-x1,y2-y1), ang=Math.atan2(y2-y1,x2-x1)*180/Math.PI;
+  let s='<g class="el '+cls+'"><g transform="translate('+x1+' '+y1+') rotate('+ang+')">'+sym(e.type,len,e.wave);
+  if(e.type!=='wire'&&!isSrc(e)){
+    const edge=len/2+(e.type==='C'?4:Math.min(20,len/2));
+    if(len-edge>=12){ const ax=(edge+len)/2; s+='<path class="fillc ref" d="M'+(ax+4)+' 0l-7 -3.5v7z"/>'; }
+  }
+  s+='</g>';
+  if(e.type!=='wire'){
+    const mx=(x1+x2)/2,my=(y1+y2)/2, off={R:13,Z:13,L:11,C:17,V:19,I:19}[e.type], col=cls.indexOf('draft')>=0?'var(--accent)':colorOf(e);
+    if(e.type==='Z'&&len>=30) s+='<text x="'+mx+'" y="'+(my+3.5)+'" text-anchor="middle" style="stroke:none">Z</text>';
+    if(Math.abs(y2-y1)<Math.abs(x2-x1))
+      s+='<text x="'+mx+'" y="'+(my-off-3)+'" text-anchor="middle"><tspan class="nm" style="fill:'+col+'">'+esc(e.name)+'</tspan><tspan dx="6">'+esc(valueText(e))+'</tspan></text>';
+    else
+      s+='<text class="nm" x="'+(mx+off+4)+'" y="'+(my-2)+'" style="fill:'+col+'">'+esc(e.name)+'</text><text x="'+(mx+off+4)+'" y="'+(my+12)+'">'+esc(valueText(e))+'</text>';
+  }
+  return s+'</g>';
+}
+function renderBoard(){
+  let s='';
+  const els=state.els;
+  for(const e of els) if(e.type==='wire') s+=drawEl(e,e.id===ui.sel?'sel':'');
+  for(const e of els) if(isBranch(e)) s+=drawEl(e,e.id===ui.sel?'sel':'');
+  const ends=new Map();
+  for(const e of els) if(two(e)) for(const k of [e.x1+','+e.y1,e.x2+','+e.y2]) ends.set(k,(ends.get(k)||0)+1);
+  for(const [k,cnt] of ends){
+    const p=k.split(',').map(Number);
+    const mid=els.some(e=>e.type==='wire'&&onSeg(p[0],p[1],e)&&!(e.x1===p[0]&&e.y1===p[1])&&!(e.x2===p[0]&&e.y2===p[1]));
+    if(cnt>=3||mid) s+='<circle class="dot" cx="'+p[0]*G+'" cy="'+p[1]*G+'" r="3"/>';
+  }
+  for(const e of els) if(!two(e)) s+=drawEl(e,e.id===ui.sel?'sel':'');
+  const sel=byId(ui.sel);
+  if(sel&&two(sel)&&ui.tool==='select') for(const p of [[sel.x1,sel.y1],[sel.x2,sel.y2]]) s+='<rect class="handle" x="'+(p[0]*G-4.5)+'" y="'+(p[1]*G-4.5)+'" width="9" height="9"/>';
+  const d=ui.drag;
+  if(d&&d.kind==='draw'){
+    if(d.type==='wire'){ for(const seg of wireSegs(d)) s+=drawEl(Object.assign({type:'wire'},seg),'draft'); }
+    else if(d.x1!==d.x2||d.y1!==d.y2) s+=drawEl(Object.assign({type:d.type,name:''},d,DEFAULTS[d.type]),'draft');
+  }
+  $('layer').innerHTML=s;
+}
+
+/* ---------- phasor items ---------- */
+function niceUp(x){
+  if(!(x>0)) return 1; const p=Math.pow(10,Math.floor(Math.log10(x))), m=x/p;
+  for(const s of [1,1.5,2,2.5,3,4,5,6,8,10]) if(m<=s*1.0001) return s*p;
+  return 10*p;
+}
+const iLabel=e=>e.type==='I'?{s:e.name}:{s:'I',sub:e.name};
+function rawItems(an,topo){
+  const U=[],I=[],pts=[];
+  if(an.ok){
+    for(const br of an.branches){
+      const e=br.e, r=an.res.get(e.id), col=colorOf(e);
+      if(!e.hideU) U.push({key:'U'+e.id,val:r.U,from:topo?r.lo:[0,0],color:col,label:e.type==='V'?{s:e.name}:{s:'U',sub:e.name}});
+      if(!e.hideI) I.push({key:'I'+e.id,val:r.I,from:[0,0],color:col,label:iLabel(e)});
+    }
+    for(const mk of an.marks) if(mk.e.type==='node'&&!mk.e.hide){
+      const v=an.nodeV(mk.n);
+      if(topo) pts.push({key:'N'+mk.e.id,val:v,name:mk.e.name}); else U.push({key:'N'+mk.e.id,val:v,from:[0,0],color:'var(--ink)',label:{s:'V',sub:mk.e.name}});
+    }
+  }
+  return {U,I,pts};
+}
+function items(an,topo){
+  const r=rawItems(an,topo);
+  if(ui.show==='U') r.I=[]; else if(ui.show==='I'){ r.U=[]; r.pts=[]; }
+  return r;
+}
+/* nodes that carry a connect-point or the reference symbol and join at least two parts */
+function kclNodes(an){
+  const out=[], seen=new Set();
+  for(const mk of an.marks){
+    if(seen.has(mk.n)) continue;
+    const count=an.branches.filter(b=>b.a!==b.b&&(b.a===mk.n||b.b===mk.n)).length;
+    if(count<2) continue; seen.add(mk.n);
+    out.push({id:mk.e.id,n:mk.n,count,name:mk.e.type==='gnd'?'the reference node':'node '+mk.e.name});
+  }
+  return out;
+}
+/* Kirchhoff's current law at one node: currents flowing in and currents flowing out, each chained tip to tail */
+function kclItems(an){
+  const nd=kclNodes(an).find(o=>o.id===ui.kcl); if(!nd) return null;
+  const grp={in:[],out:[]};
+  for(const br of an.branches){
+    if(br.a===br.b||(br.a!==nd.n&&br.b!==nd.n)) continue;
+    const e=br.e, enters=e.type==='V'?br.a===nd.n:br.b===nd.n;
+    grp[enters?'in':'out'].push({e,val:an.res.get(e.id).I});
+  }
+  const all=grp.in.concat(grp.out), maxI=Math.max(0,...all.map(o=>C.abs(o.val)));
+  const curr=[], names={in:[],out:[]}; let ext=0, end=[0,0];
+  for(const g of ['in','out']){
+    let p=[0,0];
+    for(const o of grp[g]){
+      names[g].push(o.e);
+      if(C.abs(o.val)<=maxI*1e-9) continue;
+      curr.push({key:'I'+o.e.id,val:o.val,from:p,color:colorOf(o.e),labels:[iLabel(o.e)]});
+      p=C.add(p,o.val); ext=Math.max(ext,C.abs(p));
+    }
+    if(g==='in') end=p;
+  }
+  return {volt:[],curr,pts:maxI>0?[{val:end,name:'Σ'}]:[],uS:1,iS:niceUp(ext),topo:false,kcl:true,iFull:true,info:{name:nd.name,in:names.in,out:names.out}};
+}
+function collect(an){
+  if(ui.show==='I'&&ui.mode==='topo'){ const k=kclItems(an); if(k) return k; }
+  const topo=ui.mode==='topo'&&ui.show!=='I', raw=items(an,topo), pts=raw.pts;
+  const merge=(list,max)=>{
+    const out=[], tol=max*1e-6, eq=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1])<=tol;
+    for(const it of list){
+      if(C.abs(it.val)<=max*1e-9) continue;
+      const m=out.find(o=>eq(o.val,it.val)&&eq(o.from,it.from));
+      if(m) m.labels.push(it.label); else out.push({key:it.key,val:it.val,from:it.from,color:it.color,labels:[it.label]});
+    }
+    return out;
+  };
+  const mU=Math.max(0,...raw.U.map(o=>C.abs(o.val))), mI=Math.max(0,...raw.I.map(o=>C.abs(o.val)));
+  const volt=merge(raw.U,mU), curr=merge(raw.I,mI);
+  let ext=0;
+  for(const o of volt) ext=Math.max(ext,C.abs(o.from),C.abs(C.add(o.from,o.val)));
+  for(const p of pts) ext=Math.max(ext,C.abs(p.val));
+  return {volt,curr,pts,uS:niceUp(ext),iS:niceUp(mI),topo,kcl:false,iFull:ui.show==='I'};
+}
+/* tip positions of every drawn phasor across the sweep range, cached until the circuit, range or view changes */
+const lc={sig:'',data:null};
+function locus(){
+  const topo=ui.mode==='topo'&&ui.show!=='I';
+  const sig=JSON.stringify(state.els)+'|'+ui.fc+'|'+ui.span+'|'+ui.mode+'|'+ui.show+'|'+ui.h;
+  if(lc.sig!==sig){
+    const N=160, data=new Map(), put=(k,i,v)=>{ let a=data.get(k); if(!a) data.set(k,a=[]); a.push([i,v]); };
+    for(let i=0;i<=N;i++){
+      const r=items(analyse({f:ui.fc*Math.pow(10,(2*i/N-1)*ui.span),els:state.els},ui.h),topo);
+      for(const o of r.U) put(o.key,i,C.add(o.from,o.val));
+      for(const o of r.I) put(o.key,i,o.val);
+      for(const o of r.pts) put(o.key,i,o.val);
+    }
+    lc.sig=sig; lc.data=data;
+  }
+  return lc.data;
+}
+function labelSvg(labels){
+  const shown=labels.slice(0,3); let s='', prevSub=false, plain=0;
+  shown.forEach((l,i)=>{
+    if(i){ s+='<tspan dy="'+(prevSub?-3:0)+'"> = </tspan>'; plain+=3; prevSub=false; }
+    s+=esc(l.s); plain+=l.s.length;
+    if(l.sub!=null){ s+='<tspan dy="'+(prevSub?0:3)+'" font-size="9.5">'+esc(l.sub)+'</tspan>'; plain+=l.sub.length*0.75; prevSub=true; }
+  });
+  if(labels.length>3){ s+='<tspan dy="'+(prevSub?-3:0)+'"> = …</tspan>'; plain+=4; }
+  return {s,w:plain*7.2+4};
+}
+function arrowSvg(x1,y1,x2,y2,color,dashed,sc){
+  const dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy);
+  if(L<5*sc) return '<circle cx="'+x2.toFixed(1)+'" cy="'+y2.toFixed(1)+'" r="'+(2.6*sc).toFixed(1)+'" fill="'+color+'"/>';
+  const ux=dx/L,uy=dy/L,h=Math.min(11*sc,L*0.55),wd=h*0.36,bx=x2-ux*h,by=y2-uy*h;
+  const head=x2.toFixed(1)+','+y2.toFixed(1)+' '+(bx-uy*wd).toFixed(1)+','+(by+ux*wd).toFixed(1)+' '+(bx+uy*wd).toFixed(1)+','+(by-ux*wd).toFixed(1);
+  return '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+bx.toFixed(1)+'" y2="'+by.toFixed(1)+'" stroke="'+color+'" stroke-width="'+((dashed?1.7:2.1)*Math.sqrt(sc)).toFixed(2)+'"'+(dashed?' stroke-dasharray="5 3"':'')+' stroke-linecap="round"/>'+
+    '<polygon points="'+head+'" fill="'+(dashed?'var(--surface)':color)+'" stroke="'+color+'" stroke-width="'+(1.5*Math.sqrt(sc)).toFixed(2)+'" stroke-linejoin="round"/>';
+}
+const GM={Wd:440,Ht:376,cx:220,cy:194,R:150,RI:108,ax:14,sc:1,mini:false};
+const GS={Wd:200,Ht:200,cx:100,cy:100,R:86,RI:62,ax:8,sc:0.72,mini:true};
+const EMPTY={volt:[],curr:[],pts:[],uS:1,iS:1,topo:false,kcl:false,iFull:false};
+function phasorSvg(it,g,rotDeg,paths){
+  const Wd=g.Wd,Ht=g.Ht,cx=g.cx,cy=g.cy,R=g.R,iR=it.iFull?R:g.RI,mini=g.mini;
+  const rot=C.polar(1,rotDeg);
+  const P=(z,k)=>{const r=C.mul(z,rot); return [cx+r[0]*k,cy-r[1]*k];};
+  const hasU=it.volt.length>0||(it.pts.length>0&&!it.kcl), hasI=it.curr.length>0;
+  let s=(paths?'<defs><clipPath id="pclip"><circle cx="'+cx+'" cy="'+cy+'" r="'+(R+12)+'"/></clipPath></defs>':'')+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="none" stroke="var(--line)" stroke-width="1.2"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+R/2+'" fill="none" stroke="var(--line)" stroke-width="0.8" opacity=".6"/>'+
+    (it.iFull?'':'<circle cx="'+cx+'" cy="'+cy+'" r="'+g.RI+'" fill="none" stroke="var(--line)" stroke-width="1.2" stroke-dasharray="4 4"/>')+
+    '<path d="M'+(cx-R-g.ax)+' '+cy+'H'+(cx+R+g.ax)+'M'+cx+' '+(cy-R-g.ax)+'V'+(cy+R+g.ax)+'" stroke="var(--grid)" stroke-width="1" fill="none"/>';
+  const boxes=[], labels=[];
+  if(!mini){
+    s+='<text x="'+(cx+R+18)+'" y="'+(cy+4)+'">Re</text><text x="'+cx+'" y="'+(cy-R-19)+'" text-anchor="middle">Im</text>';
+    boxes.push({x:cx+R+16,y:cy+4,w:22},{x:cx-12,y:cy-R-19,w:24});
+    const br=txt=>{ s+='<text x="'+(cx+R*0.72+5)+'" y="'+(cy+R*0.72+13)+'">'+esc(txt)+'</text>'; boxes.push({x:cx+R*0.72+3,y:cy+R*0.72+13,w:50}); };
+    if(hasU) br(si(it.uS,'V'));
+    if(hasI&&it.iFull) br(si(it.iS,'A'));
+    if(hasI&&!it.iFull){ s+='<text x="'+(cx-iR*0.72-5)+'" y="'+(cy+iR*0.72+13)+'" text-anchor="end">'+esc(si(it.iS,'A'))+'</text>'; boxes.push({x:cx-iR*0.72-50,y:cy+iR*0.72+13,w:48}); }
+  }
+  const place=(x,y,ux,uy,labs,color)=>{
+    if(mini) return;
+    const l=labelSvg(labs), anchor=ux>0.35?'start':ux<-0.35?'end':'middle';
+    let bx=anchor==='start'?x:anchor==='end'?x-l.w:x-l.w/2;
+    bx=clamp(bx,3,Wd-3-l.w); let by=clamp(y,14,Ht-8);
+    for(const dy of [0,14,-14,28,-28,42,-42]){
+      const yy=clamp(by+dy,14,Ht-8);
+      if(!boxes.some(b=>bx<b.x+b.w&&bx+l.w>b.x&&Math.abs(yy-b.y)<13)){ by=yy; break; }
+    }
+    boxes.push({x:bx,y:by,w:l.w});
+    labels.push('<text class="lbl halo" x="'+bx.toFixed(1)+'" y="'+by.toFixed(1)+'" fill="'+color+'">'+l.s+'</text>');
+  };
+  const kU=R/it.uS, kI=iR/it.iS;
+  let ps='', ar='';
+  const trace=(key,k,color,dashed)=>{
+    const arr=paths&&paths.get(key); if(!arr) return '';
+    let d='', prev=-2;
+    for(const iv of arr){
+      const q=P(iv[1],k); if(!isFinite(q[0])||!isFinite(q[1])||Math.abs(q[0])>1e6||Math.abs(q[1])>1e6){ prev=-2; continue; }
+      d+=(iv[0]===prev+1?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1); prev=iv[0];
+    }
+    return d?'<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="1.1" opacity=".55" stroke-linejoin="round"'+(dashed?' stroke-dasharray="1.5 3.5" stroke-linecap="round"':'')+' clip-path="url(#pclip)"/>':'';
+  };
+  const draw=(o,k,dashed,midLabel)=>{
+    const a=P(o.from,k), b=P(C.add(o.from,o.val),k);
+    ps+=trace(o.key,k,o.color,dashed); ar+=arrowSvg(a[0],a[1],b[0],b[1],o.color,dashed,g.sc);
+    const L=Math.hypot(b[0]-a[0],b[1]-a[1])||1, ux=(b[0]-a[0])/L, uy=(b[1]-a[1])/L;
+    if(midLabel){ let nx=-uy, ny=ux; if(ny>0){nx=-nx;ny=-ny;} place((a[0]+b[0])/2+nx*11,(a[1]+b[1])/2+ny*11+4,nx,ny,o.labels,o.color); }
+    else place(b[0]+ux*9,b[1]+uy*12+4,ux,uy,o.labels,o.color);
+  };
+  for(const o of it.curr) draw(o,kI,true,it.kcl);
+  for(const o of it.volt) draw(o,kU,false,it.topo);
+  for(const p of it.pts){
+    const k=it.kcl?kI:kU, a=P(p.val,k);
+    if(p.key) ps+=trace(p.key,k,'var(--accent)',false);
+    ar+='<circle cx="'+a[0].toFixed(1)+'" cy="'+a[1].toFixed(1)+'" r="'+(4*g.sc).toFixed(1)+'" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"/>';
+    place(a[0]+8,a[1]+15,1,0,[{s:p.name}],'var(--accent)');
+  }
+  if(!hasU&&!hasI&&!mini) s+='<text x="'+cx+'" y="'+(cy+R+34)+'" text-anchor="middle" style="font-size:12px">Nothing to draw yet.</text>';
+  return s+ps+ar+labels.join('');
+}
+const hname=k=>k===0?'DC':k===1?'Fundamental · '+si(state.f,'Hz'):'Harmonic '+k+' · '+si(k*state.f,'Hz');
+const subName=e=>e.type==='I'?esc(e.name):'I<sub>'+esc(e.name)+'</sub>';
+function renderMain(){
+  if(!cur.ok){ $('phasor').innerHTML=phasorSvg(EMPTY,GM,0,null); $('pcap').textContent=''; return; }
+  const it=collect(curAn());
+  if(ui.hold){ for(const k of ['uS','iS']){ ui.hold[k]=Math.max(ui.hold[k],it[k]); it[k]=ui.hold[k]; } }
+  const paths=(ui.paths&&!it.kcl&&ui.h>0)?locus():null;
+  $('phasor').innerHTML=phasorSvg(it,GM,ui.theta*ui.h,paths);
+  let cap;
+  if(it.kcl){
+    const jn=a=>a.length?a.map(subName).join(', '):'none';
+    cap='Currents at '+esc(it.info.name)+'. Those flowing in ('+jn(it.info.in)+') and those flowing out ('+jn(it.info.out)+') are each chained tip to tail from the origin. Both chains end at the same point Σ, which is Kirchhoff\'s current law.';
+  } else if(ui.show==='I'){
+    cap='Currents only, scaled to the outer ring.'+(ui.mode==='topo'?' Place a connect-point (Point tool) on a node that joins two or more parts to see its currents tip to tail.':'');
+  } else if(it.topo){
+    cap='Voltage arrows run between node potentials, with the reference node at the origin.'+(ui.show==='both'?' Dashed arrows are currents, scaled to the dashed ring.':'');
+  } else {
+    cap='Solid arrows are voltages, scaled to the outer ring.'+(ui.show==='both'?' Dashed arrows are currents, scaled to the dashed ring.':'');
+  }
+  if(cur.multi) cap=esc(hname(ui.h))+'. '+cap;
+  if(paths) cap+=' Thin curves show where each tip travels over the frequency range.';
+  $('pcap').innerHTML=cap;
+}
+function renderMinis(){
+  const box=$('minis'), list=cur.ok?cur.H:[];
+  const sig=list.map(o=>o.k).join(',');
+  if(box.dataset.sig!==sig){
+    box.innerHTML=list.map(o=>'<button class="mini" id="mini-'+o.k+'" data-h="'+o.k+'"><span class="mt"></span><svg viewBox="0 0 '+GS.Wd+' '+GS.Ht+'" aria-hidden="true"></svg><span class="ms"></span></button>').join('');
+    box.dataset.sig=sig;
+  }
+  const its=list.map(o=>collect(o.an));
+  if(ui.common&&its.length){
+    const mu=Math.max(...its.map(o=>(o.volt.length||o.pts.length)?o.uS:0)), mi=Math.max(...its.map(o=>o.curr.length?o.iS:0));
+    for(const o of its){ if(mu>0) o.uS=mu; if(mi>0) o.iS=mi; }
+  }
+  list.forEach((o,i)=>{
+    const b=box.children[i], it=its[i], hasU=it.volt.length||(it.pts.length&&!it.kcl), hasI=it.curr.length;
+    b.setAttribute('aria-pressed',String(o.k===ui.h));
+    b.children[0].textContent=o.k===0?'DC':o.k+' · '+si(o.k*state.f,'Hz');
+    b.children[1].innerHTML=phasorSvg(it,GS,ui.theta*o.k,null);
+    b.children[2].textContent=[hasU?'U '+si(it.uS,'V'):'',hasI?'I '+si(it.iS,'A'):''].filter(Boolean).join(' · ')||'nothing here';
+  });
+  let cap='';
+  if(cur.ok){
+    if(!cur.multi) cap='Every source is a sine, so only the fundamental exists. Select a source on the board and choose another waveform to get harmonics.';
+    else{
+      cap='One diagram per harmonic of '+si(state.f,'Hz')+', each solved at its own frequency. Click one to show it in the large diagram and in the readings. The ring scales are printed under each diagram.';
+      if(cur.skipped.length) cap+=' No content at harmonic'+(cur.skipped.length>1?'s ':' ')+cur.skipped.slice(0,10).join(', ')+(cur.skipped.length>10?', …':'')+', so '+(cur.skipped.length>1?'those are':'that is')+' left out.';
+    }
+  }
+  $('hcap').textContent=cap;
+}
+
+/* ---------- waveforms: sum of the harmonics ---------- */
+let wg=null;
+function waveSeries(){
+  const map=new Map();
+  for(const o of cur.H){
+    const r=items(o.an,false);
+    for(const it of r.U.concat(r.I)){
+      let sr=map.get(it.key); if(!sr) map.set(it.key,sr={kind:it.key[0]==='I'?'I':'U',color:it.color,comp:[]});
+      sr.comp.push({k:o.k,val:it.val});
+    }
+  }
+  const all=[...map.values()], out=[];
+  for(const kind of ['I','U']){
+    const list=all.filter(s=>s.kind===kind), mx=Math.max(0,...list.map(s=>Math.max(...s.comp.map(c=>C.abs(c.val))))), tol=mx*1e-6;
+    const kept=[];
+    for(const s of list){
+      if(!s.comp.some(c=>C.abs(c.val)>mx*1e-9)) continue;
+      if(kept.some(o=>o.comp.every((c,i)=>Math.hypot(c.val[0]-s.comp[i].val[0],c.val[1]-s.comp[i].val[1])<=tol))) continue;
+      kept.push(s);
+    }
+    out.push(...kept);
+  }
+  return out;
+}
+function renderWave(){
+  const svg=$('wave'), Wd=Math.max(300,Math.round(svg.parentNode.clientWidth||440)), Ht=190;
+  svg.setAttribute('viewBox','0 0 '+Wd+' '+Ht);
+  const x0=60,x1=Wd-60,yT=12,yB=154,mid=(yT+yB)/2,amp=(yB-yT)/2-4,T=1/state.f;
+  wg={x0,x1,yT,yB,T};
+  let s='<rect x="'+x0+'" y="'+yT+'" width="'+(x1-x0)+'" height="'+(yB-yT)+'" fill="none" stroke="var(--line)"/>'+
+    '<path d="M'+x0+' '+mid+'H'+x1+'" stroke="var(--grid)" fill="none"/>';
+  for(let k=0;k<=4;k++){
+    const x=x0+(x1-x0)*k/4;
+    if(k&&k<4) s+='<path d="M'+x+' '+yT+'V'+yB+'" stroke="var(--line)" stroke-dasharray="2 3" fill="none"/>';
+    s+='<text x="'+x+'" y="'+(yB+15)+'" text-anchor="middle">'+esc(k?si(k*T/2,'s'):'0')+'</text>';
+  }
+  const series=cur.ok?waveSeries():[];
+  const maxK=cur.ok?Math.max(1,...cur.H.map(o=>o.k)):1, n=clamp(32*maxK,240,1200);
+  const mx={U:0,I:0};
+  for(const sr of series){
+    const v=new Float64Array(n+1);
+    for(const c of sr.comp){
+      if(c.k===0){ for(let i=0;i<=n;i++) v[i]+=c.val[0]; continue; }
+      const m=C.abs(c.val)*SQ2, ph=Math.atan2(c.val[1],c.val[0]); if(!m) continue;
+      for(let i=0;i<=n;i++) v[i]+=m*Math.cos(c.k*(i/n*4*Math.PI)+ph);
+    }
+    sr.v=v; for(let i=0;i<=n;i++){ const a=Math.abs(v[i]); if(a>mx[sr.kind]) mx[sr.kind]=a; }
+  }
+  /* the ideal shape of each non-sine source, to compare with the truncated series */
+  const ideal=[];
+  if(cur.ok) for(const e of state.els){
+    if(!isBranch(e)||!isSrc(e)||isSine(e)) continue;
+    const kind=e.type==='V'?'U':'I';
+    if((kind==='U'&&(e.hideU||ui.show==='I'))||(kind==='I'&&(e.hideI||ui.show==='U'))) continue;
+    const g=shapeFn(e), v=new Float64Array(n+1), ph=e.ph*Math.PI/180;
+    for(let i=0;i<=n;i++){ v[i]=e.v*g(i/n*4*Math.PI+ph); mx[kind]=Math.max(mx[kind],Math.abs(v[i])); }
+    ideal.push({kind,v});
+  }
+  const sc={U:niceUp(mx.U),I:niceUp(mx.I)};
+  if(ui.hold){ ui.hold.uW=sc.U=Math.max(ui.hold.uW,sc.U); ui.hold.iW=sc.I=Math.max(ui.hold.iW,sc.I); }
+  const pathOf=y=>{ let d=''; for(let i=0;i<=n;i++) d+=(i?'L':'M')+(x0+(x1-x0)*i/n).toFixed(1)+' '+y[i].toFixed(1); return d; };
+  const yOf=(v,kind)=>{ const o=new Float64Array(n+1); for(let i=0;i<=n;i++) o[i]=mid-v[i]/sc[kind]*amp; return o; };
+  for(const o of ideal) s+='<path d="'+pathOf(yOf(o.v,o.kind))+'" fill="none" stroke="var(--muted)" stroke-width="1" opacity=".55" stroke-linejoin="round"/>';
+  for(const sr of series) if(sr.kind==='I') s+='<path d="'+pathOf(yOf(sr.v,'I'))+'" fill="none" stroke="'+sr.color+'" stroke-width="1.5" stroke-dasharray="5 3" stroke-linejoin="round"/>';
+  for(const sr of series) if(sr.kind==='U') s+='<path d="'+pathOf(yOf(sr.v,'U'))+'" fill="none" stroke="'+sr.color+'" stroke-width="1.8" stroke-linejoin="round"/>';
+  if(series.some(o=>o.kind==='U')) s+='<text x="'+(x0-5)+'" y="'+(yT+12)+'" text-anchor="end">'+esc(si(sc.U,'V'))+'</text><text x="'+(x0-5)+'" y="'+(yB-4)+'" text-anchor="end">'+esc(si(-sc.U,'V'))+'</text>';
+  if(series.some(o=>o.kind==='I')) s+='<text x="'+(x1+5)+'" y="'+(yT+12)+'">'+esc(si(sc.I,'A'))+'</text><text x="'+(x1+5)+'" y="'+(yB-4)+'">'+esc(si(-sc.I,'A'))+'</text>';
+  s+='<path id="wcur" stroke="var(--accent)" stroke-width="1.4" fill="none"/>';
+  svg.innerHTML=s;
+  $('wcap').textContent=cur.ok&&cur.multi?'Sum of the harmonics up to '+state.nh+'. The thin grey line is the ideal source shape.':'Two periods. Left axis voltage, right axis current.';
+  updateCursor();
+}
+function updateCursor(){
+  if(!wg) return; const c=$('wcur'), xc=wg.x0+(wg.x1-wg.x0)*ui.theta/720;
+  if(c) c.setAttribute('d','M'+xc.toFixed(1)+' '+wg.yT+'V'+wg.yB);
+  $('tout').textContent='ωt = '+Math.round(ui.theta)+'°  ·  t = '+si(ui.theta/360*wg.T,'s');
+}
+function renderSpin(){ renderMain(); renderMinis(); updateCursor(); }
+
+/* ---------- readings table ---------- */
+function keepFocus(fn){
+  const a=document.activeElement, id=a&&a.id; fn();
+  if(id){ const n=$(id); if(n&&n!==document.activeElement) n.focus({preventScroll:true}); }
+}
+function renderTable(){
+  const multi=cur.ok&&cur.multi, h=ui.h, sub=multi?'<sub>'+(h===0?'DC':h)+'</sub>':'', ncol=multi?9:6;
+  let s='<thead><tr><th scope="col">Part</th><th scope="col">Voltage U'+sub+'</th><th scope="col">Current I'+sub+'</th><th scope="col">Impedance Z'+sub+'</th><th scope="col">Active P'+sub+'</th><th scope="col">Reactive Q'+sub+'</th>'+
+    (multi?'<th scope="col" class="tot">U rms, all</th><th scope="col" class="tot">I rms, all</th><th scope="col" class="tot">P, all</th>':'')+'</tr></thead><tbody>';
+  if(!cur.ok){ s+='<tr><td colspan="'+ncol+'" class="dim">'+esc(cur.msg)+'</td></tr>'; }
+  else{
+    const an=curAn(), dc=h===0, pq=an.maxU*an.maxI*1e-9;
+    const fv=(z,unit,scale)=>dc?(Math.abs(z[0])<=scale*1e-9?'0 '+unit:si(z[0],unit)):polar(z,unit,scale);
+    const chk=(id,on,txt)=>'<label class="chk"><input type="checkbox" id="'+id+'"'+(on?' checked':'')+'><span>'+esc(txt)+'</span></label>';
+    const dash='<td class="dim">—</td>';
+    for(const br of an.branches){
+      const e=br.e, r=an.res.get(e.id);
+      s+='<tr'+(e.id===ui.sel?' class="on"':'')+'><th scope="row"><span class="sw" style="background:'+colorOf(e)+'"></span><button class="rowname" id="row-'+e.id+'" data-sel="'+e.id+'">'+esc(e.name||TYPES[e.type].label)+'</button>'+(r.src?'<span class="tag">source</span>':'')+'</th>'+
+        '<td>'+chk('vis-U-'+e.id,!e.hideU,fv(r.U,'V',an.maxU))+'</td><td>'+chk('vis-I-'+e.id,!e.hideI,fv(r.I,'A',an.maxI))+'</td>'+
+        (r.src?dash:'<td>'+(r.Z?esc(dc?si(r.Z[0],'Ω'):polar(r.Z,'Ω')):'∞ Ω')+'</td>')+
+        '<td>'+esc(si(Math.abs(r.S[0])<pq?0:r.S[0],'W'))+'</td>'+(dc?dash:'<td>'+esc(si(Math.abs(r.S[1])<pq?0:r.S[1],'var'))+'</td>');
+      if(multi){
+        let u=0,i=0,p=0; for(const o of cur.H){ const q=o.an.res.get(e.id); u+=q.U[0]*q.U[0]+q.U[1]*q.U[1]; i+=q.I[0]*q.I[0]+q.I[1]*q.I[1]; p+=q.S[0]; }
+        s+='<td class="tot">'+esc(si(Math.sqrt(u),'V'))+'</td><td class="tot">'+esc(si(Math.sqrt(i),'A'))+'</td><td class="tot">'+esc(si(Math.abs(p)<1e-12*Math.sqrt(u*i)?0:p,'W'))+'</td>';
+      }
+      s+='</tr>';
+    }
+    const nodes=an.marks.map((mk,i)=>({mk,i})).filter(o=>o.mk.e.type==='node');
+    if(nodes.length){
+      s+='<tr class="grp"><th colspan="'+ncol+'" scope="colgroup">Connect-points, potential against the reference</th></tr>';
+      for(const o of nodes){
+        const e=o.mk.e;
+        s+='<tr'+(e.id===ui.sel?' class="on"':'')+'><th scope="row"><span class="sw" style="background:var(--accent);border-radius:50%"></span><button class="rowname" id="row-'+e.id+'" data-sel="'+e.id+'">'+esc(e.name)+'</button></th>'+
+          '<td>'+chk('vis-N-'+e.id,!e.hide,fv(an.nodeV(o.mk.n),'V',an.maxU))+'</td>'+dash+dash+dash+dash;
+        if(multi){ let u=0; for(const hh of cur.H){ const v=hh.an.nodeV(hh.an.marks[o.i].n); u+=v[0]*v[0]+v[1]*v[1]; } s+='<td class="tot">'+esc(si(Math.sqrt(u),'V'))+'</td><td class="tot dim">—</td><td class="tot dim">—</td>'; }
+        s+='</tr>';
+      }
+    }
+  }
+  keepFocus(()=>{ $('table').innerHTML=s+'</tbody>'; });
+}
+
+/* ---------- inspector ---------- */
+function renderInspector(){
+  const e=byId(ui.sel); let s='';
+  if(!e){ s='<span class="hint">Nothing selected. With the Select tool, click a part to edit its value, drag it to move it, or drag an end to stretch it.</span>'; }
+  else{
+    const T=TYPES[e.type], fld=(id,label,val)=>'<label class="field"><span>'+label+'</span><input type="text" id="'+id+'" value="'+esc(val)+'" autocomplete="off"></label>';
+    s='<span class="kind">'+T.label+'</span>';
+    if(e.type!=='wire'&&e.type!=='gnd') s+=fld('insp-name','Name',e.name);
+    const w=2*Math.PI*state.f;
+    if(e.type==='R') s+=fld('insp-v','Resistance (Ω)',siPlain(e.v));
+    if(e.type==='L') s+=fld('insp-v','Inductance (H)',siPlain(e.v))+'<span class="note">X = +j '+esc(si(w*e.v,'Ω'))+' at '+esc(si(state.f,'Hz'))+'</span>';
+    if(e.type==='C') s+=fld('insp-v','Capacitance (F)',siPlain(e.v))+'<span class="note">X = −j '+esc(e.v>0?si(1/(w*e.v),'Ω'):'∞ Ω')+' at '+esc(si(state.f,'Hz'))+'</span>';
+    if(e.type==='Z') s+=fld('insp-r','R (Ω)',siPlain(e.r))+fld('insp-x','X (Ω), + inductive',siPlain(e.x))+'<span class="note">the same at every harmonic</span>';
+    if(isSrc(e)){
+      const q=e.type==='V'?'voltage (V)':'current (A)';
+      s+='<label class="field"><span>Waveform</span><select id="insp-wave">'+Object.keys(WAVES).map(k=>'<option value="'+k+'"'+((e.wave||'sine')===k?' selected':'')+'>'+WAVES[k]+'</option>').join('')+'</select></label>';
+      s+=fld('insp-v',(isSine(e)?'RMS ':'Peak ')+q,siPlain(e.v))+fld('insp-ph','Phase (°)',String(e.ph));
+      if(e.wave==='pulse') s+=fld('insp-duty','Duty (%)',String(Math.round((e.duty||0.25)*1000)/10));
+    }
+    s+='<span class="spacer"></span>';
+    if(isBranch(e)) s+='<button id="insp-flip" title="Swap the two terminals">Flip direction</button>';
+    s+='<button id="insp-del" title="Delete (Del)">Delete</button>';
+  }
+  keepFocus(()=>{ $('insp').innerHTML=s; });
+}
+$('insp').addEventListener('change',ev=>{
+  const e=byId(ui.sel), t=ev.target; if(!e||!t.id) return;
+  const bad=()=>{ t.setAttribute('aria-invalid','true'); };
+  if(t.id==='insp-name'){ const v=t.value.trim().slice(0,12); if(!v) return bad(); pushUndo(); e.name=v; }
+  else if(t.id==='insp-ph'){ const v=parseNum(t.value); if(!isFinite(v)) return bad(); pushUndo(); e.ph=v; }
+  else if(t.id==='insp-duty'){ const v=parseNum(t.value); if(!(v>=1&&v<=99)) return bad(); pushUndo(); e.duty=v/100; }
+  else if(t.id==='insp-wave'){
+    if(!WAVES[t.value]) return; pushUndo();
+    if(t.value==='sine'){ delete e.wave; delete e.duty; } else { e.wave=t.value; if(t.value==='pulse'){ if(!e.duty) e.duty=0.25; } else delete e.duty; }
+  }
+  else{
+    const v=parseSI(t.value), k={'insp-v':'v','insp-r':'r','insp-x':'x'}[t.id]; if(!k) return;
+    if(!isFinite(v)||(k!=='x'&&v<0)) return bad();
+    pushUndo(); e[k]=v;
+  }
+  refresh(true);
+});
+$('insp').addEventListener('click',ev=>{
+  const e=byId(ui.sel); if(!e) return;
+  if(ev.target.id==='insp-del') removeSel();
+  if(ev.target.id==='insp-flip'){ pushUndo(); [e.x1,e.x2]=[e.x2,e.x1]; [e.y1,e.y2]=[e.y2,e.y1]; refresh(false); }
+});
+
+/* ---------- refresh ---------- */
+function syncHarm(){
+  const many=cur.ok&&cur.H.length>1;
+  for(const id of ['hsel-phasor','hsel-table']){
+    $(id+'-wrap').hidden=!many;
+    if(many) $(id).innerHTML=cur.H.map(o=>'<option value="'+o.k+'"'+(o.k===ui.h?' selected':'')+'>'+esc(hname(o.k))+'</option>').join('');
+  }
+  const opts=cur.ok?kclNodes(cur.base):[];
+  if(!opts.some(o=>o.id===ui.kcl)) ui.kcl=opts.length?opts.reduce((a,b)=>b.count>a.count?b:a).id:null;
+  const kshow=ui.show==='I'&&ui.mode==='topo'&&opts.length>0;
+  $('kclwrap').hidden=!kshow;
+  if(kshow) $('kclnode').innerHTML=opts.map(o=>'<option value="'+o.id+'"'+(o.id===ui.kcl?' selected':'')+'>'+esc(o.name)+'</option>').join('');
+  $('nh').value=state.nh; $('nhout').textContent=state.nh;
+}
+function refresh(insp){
+  solveAll();
+  renderBoard(); syncHarm(); renderTable(); renderMain(); renderMinis(); renderWave();
+  const st=$('status');
+  st.className='status'+(cur.ok?'':' err');
+  st.textContent=cur.ok?cur.notes.join(' '):cur.msg;
+  if(insp) renderInspector();
+  $('undo').disabled=!history.length; $('redo').disabled=!future.length;
+  save();
+}
+function setView(){ ui.hold=null; syncHarm(); renderTable(); renderMain(); renderMinis(); renderWave(); }
+function select(id){ if(ui.sel===id) return; ui.sel=id; renderInspector(); }
+function removeSel(){ const e=byId(ui.sel); if(!e) return; pushUndo(); state.els=state.els.filter(o=>o!==e); ui.sel=null; refresh(true); }
+function syncFreq(recentre){
+  if(recentre||!(Math.abs(Math.log10(state.f/ui.fc))<=ui.span*1.0001)) ui.fc=state.f;
+  $('freq').value=siPlain(state.f); $('freq').removeAttribute('aria-invalid');
+  $('fsweep').value=Math.round(Math.log10(state.f/ui.fc)/ui.span*1000);
+  showFreq();
+}
+function showFreq(){
+  $('fout').textContent='f = '+si(state.f,'Hz',4)+'  ·  slider runs from '+si(ui.fc*Math.pow(10,-ui.span),'Hz')+' to '+si(ui.fc*Math.pow(10,ui.span),'Hz')+' on a log scale';
+  $('fsweep').setAttribute('aria-valuetext',si(state.f,'Hz',4));
+}
+function load(st){ pushUndo(); state=st; ui.sel=null; ui.h=1; syncFreq(true); refresh(true); }
+
+/* ---------- toolbar ---------- */
+const TOOLS=[['select','Select','<path d="M19 -9l2 17 4 -5 6 2z" class="fillc" stroke-width="1.5"/>','s'],
+  ['wire','Wire','<path d="M6 0H46"/><circle cx="6" cy="0" r="2.6" class="fillc"/><circle cx="46" cy="0" r="2.6" class="fillc"/>','w'],
+  ['R','R',sym('R',52),'r'],['L','L',sym('L',52),'l'],['C','C',sym('C',52),'c'],['Z','Z',sym('Z',52)+'<path d="M19 4l14 -8" stroke-width="1.8"/>','z'],
+  ['V','U source',sym('V',52),'u'],['I','I source',sym('I',52),'i'],
+  ['node','Point','<circle cx="26" cy="0" r="5" class="fillc"/><path d="M4 0H48"/>','p'],
+  ['gnd','Reference','<g transform="translate(26 -12)">'+gndSym(0,0)+'</g>','g']];
+$('tools').innerHTML=TOOLS.map(t=>'<button class="tool" id="tool-'+t[0]+'" data-tool="'+t[0]+'" aria-pressed="'+(t[0]===ui.tool)+'" title="'+esc(t[1])+' ('+t[3].toUpperCase()+')"><svg viewBox="0 -14 52 28" aria-hidden="true">'+t[2]+'</svg>'+esc(t[1])+'</button>').join('');
+function setTool(t){
+  ui.tool=t; ui.drag=null;
+  for(const b of $('tools').children) b.setAttribute('aria-pressed',String(b.dataset.tool===t));
+  $('board').style.cursor=t==='select'?'default':'crosshair';
+  renderBoard();
+}
+$('tools').addEventListener('click',ev=>{ const b=ev.target.closest('[data-tool]'); if(b) setTool(b.dataset.tool); });
+
+/* ---------- pointer editing ---------- */
+const board=$('board');
+function gp(ev){
+  /* through the SVG's own matrix, so it stays right when the board is letterboxed by its height limit */
+  let x,y; const m=board.getScreenCTM();
+  if(m){ const q=new DOMPoint(ev.clientX,ev.clientY).matrixTransform(m.inverse()); x=q.x; y=q.y; }
+  else{ const r=board.getBoundingClientRect(); x=(ev.clientX-r.left)*W/r.width; y=(ev.clientY-r.top)*H/r.height; }
+  return {px:x,py:y,gx:clamp(Math.round(x/G),1,COLS-1),gy:clamp(Math.round(y/G),1,ROWS-1)};
+}
+function segDist(px,py,x1,y1,x2,y2){
+  const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy; let t=l2?((px-x1)*dx+(py-y1)*dy)/l2:0; t=clamp(t,0,1);
+  return Math.hypot(px-(x1+t*dx),py-(y1+t*dy));
+}
+function hitTest(px,py){
+  let best=null,bd=1e9;
+  for(const e of state.els){
+    let d;
+    if(two(e)) d=segDist(px,py,e.x1*G,e.y1*G,e.x2*G,e.y2*G)-(isBranch(e)?4:0);
+    else d=Math.hypot(px-e.x1*G,py-(e.y1*G+(e.type==='gnd'?8:0)))-5;
+    if(d<bd){bd=d;best=e;}
+  }
+  return bd<=9?best:null;
+}
+const axisSnap=(x1,y1,x,y)=>Math.abs(x-x1)>=Math.abs(y-y1)?[x,y1]:[x1,y];
+function wireSegs(d){
+  const out=[];
+  if(d.x1!==d.x2) out.push({x1:d.x1,y1:d.y1,x2:d.x2,y2:d.y1});
+  if(d.y1!==d.y2) out.push({x1:d.x2,y1:d.y1,x2:d.x2,y2:d.y2});
+  return out;
+}
+function addEl(type,x1,y1,x2,y2){
+  const e=Object.assign({id:state.nextId++,type,name:nextName(type),x1,y1,x2,y2},DEFAULTS[type]||{});
+  state.els.push(e); return e;
+}
+board.addEventListener('pointerdown',ev=>{
+  if(ev.button) return; ev.preventDefault();
+  try{ board.setPointerCapture(ev.pointerId); }catch(_){}
+  const p=gp(ev), t=ui.tool;
+  if(t==='select'){
+    const sel=byId(ui.sel); let end=0;
+    if(sel&&two(sel)){
+      if(Math.hypot(p.px-sel.x1*G,p.py-sel.y1*G)<=9) end=1; else if(Math.hypot(p.px-sel.x2*G,p.py-sel.y2*G)<=9) end=2;
+    }
+    if(end) ui.drag={kind:'end',end,id:sel.id,before:JSON.stringify(state),moved:false};
+    else{
+      const hit=hitTest(p.px,p.py);
+      if(hit){ select(hit.id); ui.drag={kind:'move',id:hit.id,gx0:p.gx,gy0:p.gy,o:{x1:hit.x1,y1:hit.y1,x2:hit.x2,y2:hit.y2},before:JSON.stringify(state),moved:false}; }
+      else select(null);
+    }
+    refresh(false);
+  } else if(t==='node'||t==='gnd'){
+    const there=state.els.find(e=>e.type===t&&e.x1===p.gx&&e.y1===p.gy);
+    if(there) select(there.id);
+    else{ pushUndo(); const e=addEl(t,p.gx,p.gy,p.gx,p.gy); ui.sel=null; select(e.id); }
+    refresh(false);
+  } else { ui.drag={kind:'draw',type:t,x1:p.gx,y1:p.gy,x2:p.gx,y2:p.gy}; renderBoard(); }
+});
+board.addEventListener('pointermove',ev=>{
+  const d=ui.drag; if(!d) return; const p=gp(ev);
+  if(d.kind==='draw'){
+    if(d.type==='wire'){ d.x2=p.gx; d.y2=p.gy; } else { const a=axisSnap(d.x1,d.y1,p.gx,p.gy); d.x2=a[0]; d.y2=a[1]; }
+    renderBoard(); return;
+  }
+  const e=byId(d.id); if(!e) return;
+  if(d.kind==='move'){
+    const o=d.o, dx=clamp(p.gx-d.gx0,1-Math.min(o.x1,o.x2),COLS-1-Math.max(o.x1,o.x2)), dy=clamp(p.gy-d.gy0,1-Math.min(o.y1,o.y2),ROWS-1-Math.max(o.y1,o.y2));
+    if(e.x1===o.x1+dx&&e.y1===o.y1+dy) return;
+    e.x1=o.x1+dx; e.y1=o.y1+dy; e.x2=o.x2+dx; e.y2=o.y2+dy; d.moved=true;
+  } else {
+    const fx=d.end===1?e.x2:e.x1, fy=d.end===1?e.y2:e.y1, a=axisSnap(fx,fy,p.gx,p.gy);
+    if(a[0]===fx&&a[1]===fy) return;
+    if(d.end===1){ if(e.x1===a[0]&&e.y1===a[1]) return; e.x1=a[0]; e.y1=a[1]; } else { if(e.x2===a[0]&&e.y2===a[1]) return; e.x2=a[0]; e.y2=a[1]; }
+    d.moved=true;
+  }
+  refresh(false);
+});
+function endDrag(){
+  const d=ui.drag; if(!d) return; ui.drag=null;
+  if(d.kind==='draw'){
+    if(d.type==='wire'){
+      const segs=wireSegs(d);
+      if(segs.length){ pushUndo(); let last; for(const sgm of segs) last=addEl('wire',sgm.x1,sgm.y1,sgm.x2,sgm.y2); ui.sel=null; select(last.id); }
+    } else {
+      let x1=d.x1,y1=d.y1,x2=d.x2,y2=d.y2;
+      if(x1===x2&&y1===y2){ x1=clamp(x1-2,1,COLS-5); x2=x1+4; }
+      else if(Math.abs(x2-x1)+Math.abs(y2-y1)===1){
+        if(y1===y2){ const s=Math.sign(x2-x1); x2=x1+2*s; if(x2<1||x2>COLS-1){ x1-=s; x2-=s; } }
+        else{ const s=Math.sign(y2-y1); y2=y1+2*s; if(y2<1||y2>ROWS-1){ y1-=s; y2-=s; } }
+      }
+      pushUndo(); const e=addEl(d.type,x1,y1,x2,y2); ui.sel=null; select(e.id);
+    }
+    refresh(false);
+  } else if(d.moved){ pushUndo(d.before); refresh(true); }
+}
+board.addEventListener('pointerup',endDrag);
+board.addEventListener('pointercancel',()=>{ const d=ui.drag; ui.drag=null; if(d&&d.before&&d.moved){ state=JSON.parse(d.before); } refresh(true); });
+
+/* ---------- other controls ---------- */
+$('table').addEventListener('change',ev=>{
+  const m=/^vis-([UIN])-(\d+)$/.exec(ev.target.id||''); if(!m) return;
+  const e=byId(Number(m[2])); if(!e) return;
+  e[{U:'hideU',I:'hideI',N:'hide'}[m[1]]]=!ev.target.checked; refresh(false);
+});
+$('table').addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-sel]'); if(!b) return;
+  if(ui.tool!=='select') setTool('select');
+  select(Number(b.dataset.sel)); refresh(false);
+});
+$('freq').addEventListener('change',ev=>{
+  const v=parseSI(ev.target.value);
+  if(!(v>0)||!isFinite(v)){ ev.target.setAttribute('aria-invalid','true'); return; }
+  pushUndo(); state.f=v; syncFreq(true); refresh(true);
+});
+$('example').addEventListener('change',ev=>{ const f=EXAMPLES[ev.target.value]; if(f) load(f()); ev.target.value=''; });
+$('clear').addEventListener('click',()=>{ if(state.els.length) load({f:state.f,nh:state.nh,els:[],nextId:1}); });
+function undo(){ if(!history.length) return; future.push(JSON.stringify(state)); state=JSON.parse(history.pop()); ui.sel=null; syncFreq(false); refresh(true); }
+function redo(){ if(!future.length) return; history.push(JSON.stringify(state)); state=JSON.parse(future.pop()); ui.sel=null; syncFreq(false); refresh(true); }
+$('undo').addEventListener('click',undo); $('redo').addEventListener('click',redo);
+function press(){
+  $('mode-origin').setAttribute('aria-pressed',String(ui.mode==='origin')); $('mode-topo').setAttribute('aria-pressed',String(ui.mode==='topo'));
+  for(const k of ['both','U','I']) $('show-'+k).setAttribute('aria-pressed',String(ui.show===k));
+}
+$('mode-origin').addEventListener('click',()=>{ ui.mode='origin'; press(); setView(); });
+$('mode-topo').addEventListener('click',()=>{ ui.mode='topo'; press(); setView(); });
+for(const k of ['both','U','I']) $('show-'+k).addEventListener('click',()=>{ ui.show=k; press(); setView(); });
+for(const id of ['hsel-phasor','hsel-table']) $(id).addEventListener('change',ev=>{ ui.h=Number(ev.target.value); setView(); });
+$('kclnode').addEventListener('change',ev=>{ ui.kcl=Number(ev.target.value); setView(); });
+$('minis').addEventListener('click',ev=>{ const b=ev.target.closest('[data-h]'); if(b){ ui.h=Number(b.dataset.h); setView(); } });
+$('nh').addEventListener('input',ev=>{ state.nh=clamp(Math.round(Number(ev.target.value))||1,1,NHMAX); refresh(false); });
+$('common').addEventListener('change',ev=>{ ui.common=ev.target.checked; renderMinis(); });
+let sweepBefore=null;
+$('fsweep').addEventListener('input',ev=>{
+  if(sweepBefore==null) sweepBefore=JSON.stringify(state);
+  if(!ui.hold) ui.hold={uS:0,iS:0,uW:0,iW:0};
+  state.f=parseFloat((ui.fc*Math.pow(10,Number(ev.target.value)/1000*ui.span)).toPrecision(4));
+  $('freq').value=siPlain(state.f); $('freq').removeAttribute('aria-invalid'); showFreq();
+  refresh(true);
+});
+$('fsweep').addEventListener('change',()=>{
+  if(sweepBefore!=null){ if(JSON.parse(sweepBefore).f!==state.f) pushUndo(sweepBefore); sweepBefore=null; }
+  ui.hold=null; refresh(false);
+});
+$('fspan').addEventListener('change',ev=>{ ui.span=Number(ev.target.value)||1; syncFreq(false); renderMain(); });
+$('paths').addEventListener('change',ev=>{ ui.paths=ev.target.checked; renderMain(); });
+$('theta').addEventListener('input',ev=>{ ui.theta=Number(ev.target.value); renderSpin(); });
+let lastTs=0;
+function tick(ts){
+  if(!ui.playing) return;
+  if(lastTs) ui.theta=(ui.theta+(ts-lastTs)*0.09)%720;
+  lastTs=ts; $('theta').value=Math.round(ui.theta); renderSpin(); requestAnimationFrame(tick);
+}
+$('play').addEventListener('click',()=>{
+  ui.playing=!ui.playing; $('play').setAttribute('aria-pressed',String(ui.playing)); $('play').textContent=ui.playing?'Pause':'Rotate';
+  if(ui.playing){ lastTs=0; requestAnimationFrame(tick); }
+});
+document.addEventListener('keydown',ev=>{
+  const t=ev.target; if(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+  const k=ev.key.toLowerCase();
+  if((ev.ctrlKey||ev.metaKey)&&k==='z'){ ev.preventDefault(); ev.shiftKey?redo():undo(); return; }
+  if((ev.ctrlKey||ev.metaKey)&&k==='y'){ ev.preventDefault(); redo(); return; }
+  if(ev.ctrlKey||ev.metaKey||ev.altKey) return;
+  if(k==='delete'||k==='backspace'){ if(ui.sel!=null){ ev.preventDefault(); removeSel(); } return; }
+  if(k==='escape'){ setTool('select'); return; }
+  const tool=TOOLS.find(x=>x[3]===k); if(tool) setTool(tool[0]);
+});
+$('io-copy').addEventListener('click',()=>{
+  const txt=JSON.stringify({f:state.f,nh:state.nh,els:state.els.map(e=>{const o=Object.assign({},e); delete o.id; if(!two(e)){delete o.x2;delete o.y2;} return o;})});
+  const ta=$('io-text'); ta.value=txt;
+  const fall=()=>{ ta.focus(); ta.select(); $('io-msg').textContent='Text is selected. Copy it with Ctrl+C.'; };
+  try{ navigator.clipboard.writeText(txt).then(()=>{ $('io-msg').textContent='Copied.'; },fall); }catch(_){ fall(); }
+});
+$('io-load').addEventListener('click',()=>{
+  let st=null; try{ st=sanitize(JSON.parse($('io-text').value)); }catch(_){}
+  if(!st){ $('io-msg').textContent='That text is not a saved circuit. Only text made with "Copy current circuit" can be loaded; a SPICE netlist cannot.'; return; }
+  load(st); $('io-msg').textContent='Loaded '+st.els.length+' items.';
+});
+
+/* ---------- SPICE export ---------- */
+function spiceNetlist(){
+  const an=analyse(state,1);
+  if(!an.branches.length) return null;
+  const f=state.f, T=1/f, w=2*Math.PI*f, NPER=5, gnd=an.grounded;
+  const num=x=>String(parseFloat(Number(x).toPrecision(6)));
+  const clean=s=>String(s).replace(/[^A-Za-z0-9_]/g,'_');
+  const uniq=(base,set)=>{ let u=base,i=2; while(set.has(u.toUpperCase())) u=base+'_'+(i++); set.add(u.toUpperCase()); return u; };
+  const usedN=new Set(['0']), usedP=new Set(), names=new Map();
+  for(const mk of an.marks) if(mk.e.type==='node'&&!gnd[mk.n]&&!names.has(mk.n)){ let nm=clean(mk.e.name)||'N'; if(/^\d/.test(nm)) nm='N'+nm; names.set(mk.n,uniq(nm,usedN)); }
+  let auto=0;
+  const node=i=>{ if(gnd[i]) return '0'; if(!names.has(i)){ let b; do{ b='N'+(++auto); }while(usedN.has(b)); usedN.add(b); names.set(i,b); } return names.get(i); };
+  const pname=(letter,nm)=>{ nm=clean(nm)||'X'; if(nm[0].toUpperCase()!==letter) nm=letter+nm; return uniq(nm,usedP); };
+  const inner=nm=>uniq(clean(nm),usedN);
+  const lines=[], notes=[];
+  const acOf=x=>C.abs(x)>0?' AC '+num(C.abs(x))+' '+num(C.arg(x)):'';
+  /* the page refers every phasor to cos, SPICE's SIN source to sin: hence the +90 degrees */
+  const sinOf=(x,k)=>' SIN(0 '+num(C.abs(x)*SQ2)+' '+num(k*f)+' 0 0 '+num(C.arg(x)+90)+')';
+  function source(e,a,b){
+    const L=e.type, nm=pname(L,e.name), phr=e.ph*Math.PI/180, x1=srcPhasor(e,1), head=nm+' '+a+' '+b;
+    if(isSine(e)){ lines.push(head+acOf(x1)+sinOf(x1,1)); return; }
+    if(e.wave==='square'||e.wave==='pulse'){
+      const hw=e.wave==='square'?Math.PI/2:Math.PI*(e.duty||0.25), lo=e.wave==='square'?-e.v:0, hi=e.v;
+      const frac=x=>{ x=x%1; return x<0?x+1:x; }, edge=T*1e-4, highDur=T*hw/Math.PI;
+      const tRise=frac((-hw-phr)/(2*Math.PI))*T, tFall=frac((hw-phr)/(2*Math.PI))*T;
+      /* PULSE starts at its first level, so start from whichever level the wave has at t = 0 */
+      const p=Math.abs(wrap(phr))<hw?[hi,lo,tFall,edge,edge,T-highDur-edge,T]:[lo,hi,tRise,edge,edge,highDur-edge,T];
+      lines.push(head+acOf(x1)+' PULSE('+p.map(num).join(' ')+')'); return;
+    }
+    if(e.wave==='triangle'||e.wave==='saw'){
+      const g=shapeFn(e), tstop=NPER*T, edge=T*1e-4, pts=[[0,e.v*g(phr)]];
+      if(e.wave==='triangle'){
+        for(let m=Math.ceil(phr/Math.PI);;m++){ const t=(m*Math.PI-phr)/w; if(t>=tstop*0.999999) break; if(t>T*1e-9) pts.push([t,m%2===0?e.v:-e.v]); }
+      } else {
+        for(let m=Math.ceil((phr-Math.PI)/(2*Math.PI));;m++){ const t=(Math.PI+2*Math.PI*m-phr)/w; if(t+edge>=tstop*0.999999) break; if(t>T*1e-9) pts.push([t,e.v],[t+edge,-e.v]); }
+      }
+      pts.push([tstop,e.v*g(w*tstop+phr-1e-9)]);
+      for(const q of pts) if(Math.abs(q[1])<Math.abs(e.v)*1e-6) q[1]=0;
+      const chunks=[]; for(let i=0;i<pts.length;i+=4) chunks.push(pts.slice(i,i+4).map(q=>num(q[0])+' '+num(q[1])).join('  '));
+      lines.push(head+acOf(x1)+' PWL('+chunks[0]); for(let i=1;i<chunks.length;i++) lines.push('+ '+chunks[i]);
+      lines[lines.length-1]+=')';
+      notes.push(nm+' is a PWL source that covers the first '+NPER+' periods. Add points if you lengthen .TRAN.');
+      return;
+    }
+    /* rectified sines have no SPICE source of their own: write the Fourier series the page uses */
+    const terms=[], dc=srcPhasor(e,0)[0]; if(Math.abs(dc)>0) terms.push({k:0,dc});
+    for(let k=1;k<=state.nh;k++){ const x=srcPhasor(e,k); if(C.abs(x)>0) terms.push({k,x}); }
+    if(!terms.length){ lines.push(head+' DC 0'); return; }
+    const spec=t=>t.k===0?' DC '+num(t.dc):(t.k===1?acOf(t.x):'')+sinOf(t.x,t.k);
+    let from=a;
+    terms.forEach((t,i)=>{
+      const pn=uniq(nm+'_'+t.k,usedP);
+      if(L==='I'){ lines.push(pn+' '+a+' '+b+spec(t)); return; }
+      const to=i===terms.length-1?b:inner(clean(e.name)+'_h'+t.k); lines.push(pn+' '+from+' '+to+spec(t)); from=to;
+    });
+    notes.push(nm+' ('+WAVES[e.wave].toLowerCase()+') is written as its Fourier series up to harmonic '+state.nh+', as '+(L==='V'?'sources in series':'sources in parallel')+'.');
+  }
+  const dcp=[...Array(gnd.length).keys()], df=i=>{ while(dcp[i]!==i){ dcp[i]=dcp[dcp[i]]; i=dcp[i]; } return i; };
+  const deg1=new Array(gnd.length).fill(0);
+  for(const br of an.branches){
+    const e=br.e, a=node(br.a), b=node(br.b);
+    if(br.a!==br.b){ deg1[br.a]++; deg1[br.b]++; }
+    if(e.type==='R'||e.type==='L'||e.type==='V'||(e.type==='Z'&&e.x>=0)) dcp[df(br.a)]=df(br.b);
+    switch(e.type){
+      case 'R': lines.push(pname('R',e.name)+' '+a+' '+b+' '+num(e.v>0?e.v:1e-6)); if(!(e.v>0)) notes.push(e.name+' is 0 ohm on the page and is written as 1 micro-ohm.'); break;
+      case 'L': lines.push(pname('L',e.name)+' '+a+' '+b+' '+num(e.v)); break;
+      case 'C': lines.push(pname('C',e.name)+' '+a+' '+b+' '+num(e.v)); break;
+      case 'Z': {
+        const parts=[]; if(e.r>0||e.x===0) parts.push(['R',e.r>0?e.r:1e-6]);
+        if(e.x>0) parts.push(['L',e.x/w]); else if(e.x<0) parts.push(['C',1/(w*-e.x)]);
+        let from=a;
+        parts.forEach((q,i)=>{ const to=i===parts.length-1?b:inner(clean(e.name)+'_m'); lines.push(pname(q[0],e.name)+' '+from+' '+to+' '+num(q[1])); from=to; });
+        notes.push(e.name+' = '+num(e.r)+(e.x<0?' - j':' + j')+num(Math.abs(e.x))+' ohm is written as its series equivalent at '+num(f)+' Hz. At other frequencies it differs from the page, where it stays constant.');
+        break; }
+      default: source(e,a,b);
+    }
+  }
+  const gRoots=new Set(); for(let i=0;i<gnd.length;i++) if(gnd[i]) gRoots.add(df(i));
+  const floating=[], single=[];
+  for(let i=0;i<gnd.length;i++){ if(!deg1[i]||gnd[i]) continue; if(!gRoots.has(df(i))) floating.push(node(i)); if(deg1[i]===1) single.push(node(i)); }
+  if(floating.length) notes.push('No DC path to node 0 from '+floating.join(', ')+'. If your simulator reports a floating node, add a large resistor (for example 1G) from there to 0.');
+  if(single.length) notes.push('Only one part connects to '+single.join(', ')+'. PSpice reports that as an error; the page simply shows no current there.');
+  const ascii=s=>s.replace(/−/g,'-').replace(/µ/g,'u').replace(/Ω/g,'ohm').replace(/[^\x20-\x7e]/g,'?');
+  const head=['Phasor Bench export',
+    '* Fundamental '+num(f)+' Hz. AC values are RMS, so .AC results are RMS phasors like the readings on the page.',
+    '* Node 0 is the reference. Each part lists its first terminal first: + for a voltage source, the tail of the arrow for a current source.'];
+  for(const t of an.notes.concat(notes)) head.push('* Note: '+ascii(t));
+  const tail=['.AC DEC 100 '+num(ui.fc*Math.pow(10,-ui.span))+' '+num(ui.fc*Math.pow(10,ui.span)),
+    '* For the fundamental only, use instead: .AC LIN 1 '+num(f)+' '+num(f),
+    '.TRAN '+num(T/200)+' '+num(NPER*T)+' 0 '+num(T/2000),'.PROBE','.END'];
+  return head.concat(lines,tail).join('\n')+'\n';
+}
+$('io-spice').addEventListener('click',()=>{
+  const txt=spiceNetlist(), ta=$('io-text');
+  if(!txt){ $('io-msg').textContent='There is nothing to export yet.'; return; }
+  ta.value=txt; ta.style.minHeight='220px';
+  const fall=()=>{ ta.focus(); ta.select(); $('io-msg').textContent='Netlist is selected. Copy it with Ctrl+C and save it as a .cir file.'; };
+  try{ navigator.clipboard.writeText(txt).then(()=>{ $('io-msg').textContent='Netlist copied. Paste it into a text file and save it as .cir.'; },fall); }catch(_){ fall(); }
+});
+
+/* ---------- movable panels ---------- */
+const layout=$('layout'), zones=[...layout.querySelectorAll('.zone')], zoneBy=n=>zones.find(z=>z.dataset.zone===n);
+const panelsIn=z=>[...z.children].filter(c=>c.classList.contains('panel'));
+for(const g of layout.querySelectorAll('.grip')){
+  g.innerHTML='<svg viewBox="0 0 10 16" aria-hidden="true"><circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/><circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/><circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/></svg>';
+  g.title='Drag to move this panel. With the keyboard: arrow keys.';
+}
+const DEFAULT_LAYOUT={}; for(const z of zones) DEFAULT_LAYOUT[z.dataset.zone]=panelsIn(z).map(p=>p.id);
+function applyLayout(o){
+  if(!o||typeof o!=='object') return;
+  for(const z of zones){ const ids=o[z.dataset.zone]; if(!Array.isArray(ids)) continue; for(const id of ids){ const p=typeof id==='string'&&/^p-[a-z]+$/.test(id)?$(id):null; if(p&&p.classList.contains('panel')) z.appendChild(p); } }
+}
+function saveLayout(){ const o={}; for(const z of zones) o[z.dataset.zone]=panelsIn(z).map(p=>p.id); try{ localStorage.setItem(LKEY,JSON.stringify(o)); }catch(_){} }
+try{ applyLayout(JSON.parse(localStorage.getItem(LKEY))); }catch(_){}
+const dropmark=document.createElement('div'); dropmark.className='dropmark';
+let pd=null;
+function dropTarget(x,y){
+  let best=null,bd=1e9;
+  for(const z of zones){ const r=z.getBoundingClientRect(), dx=Math.max(r.left-x,0,x-r.right), dy=Math.max(r.top-y,0,y-r.bottom), d=dx*4+dy; if(d<bd){bd=d;best=z;} }
+  const before=panelsIn(best).filter(p=>p!==pd.panel).find(p=>{ const r=p.getBoundingClientRect(); return y<r.top+r.height/2; })||null;
+  return {zone:best,before};
+}
+function autoScroll(){
+  if(!pd) return;
+  if(pd.y<70) window.scrollBy(0,-14); else if(pd.y>window.innerHeight-70) window.scrollBy(0,14);
+  const t=dropTarget(pd.x,pd.y); if(dropmark.parentNode!==t.zone||dropmark.nextSibling!==t.before) t.zone.insertBefore(dropmark,t.before);
+  requestAnimationFrame(autoScroll);
+}
+function endPanelDrag(commit){
+  if(!pd) return; const panel=pd.panel; pd=null;
+  if(commit&&dropmark.parentNode) dropmark.parentNode.insertBefore(panel,dropmark);
+  dropmark.remove(); panel.classList.remove('moving'); layout.classList.remove('dragging');
+  if(commit){ saveLayout(); renderWave(); }
+}
+layout.addEventListener('pointerdown',ev=>{
+  const grip=ev.target.closest('.grip'); if(!grip||ev.button) return;
+  ev.preventDefault(); try{ grip.setPointerCapture(ev.pointerId); }catch(_){}
+  pd={panel:grip.closest('.panel'),x:ev.clientX,y:ev.clientY};
+  pd.panel.classList.add('moving'); layout.classList.add('dragging'); requestAnimationFrame(autoScroll);
+});
+layout.addEventListener('pointermove',ev=>{ if(pd){ pd.x=ev.clientX; pd.y=ev.clientY; } });
+layout.addEventListener('pointerup',()=>endPanelDrag(true));
+layout.addEventListener('pointercancel',()=>endPanelDrag(false));
+layout.addEventListener('keydown',ev=>{
+  const grip=ev.target.closest&&ev.target.closest('.grip'); if(!grip) return;
+  const panel=grip.closest('.panel'), zone=panel.parentNode, zn=zone.dataset.zone, list=panelsIn(zone), i=list.indexOf(panel);
+  let done=true;
+  if(ev.key==='ArrowUp'){ if(i>0) zone.insertBefore(panel,list[i-1]); else if(zn==='bottom') zoneBy('left').appendChild(panel); else done=false; }
+  else if(ev.key==='ArrowDown'){ if(i<list.length-1) zone.insertBefore(list[i+1],panel); else if(zn!=='bottom') zoneBy('bottom').insertBefore(panel,zoneBy('bottom').firstChild); else done=false; }
+  else if(ev.key==='ArrowLeft'&&zn!=='left') zoneBy('left').appendChild(panel);
+  else if(ev.key==='ArrowRight'&&zn!=='right') zoneBy('right').appendChild(panel);
+  else done=false;
+  if(done){ ev.preventDefault(); grip.focus(); saveLayout(); renderWave(); }
+});
+$('resetlayout').addEventListener('click',()=>{ applyLayout(DEFAULT_LAYOUT); try{ localStorage.removeItem(LKEY); }catch(_){} renderWave(); });
+
+/* ---------- colour themes ---------- */
+/* each theme fills the same tokens as the stylesheet; p = the eight phasor colours */
+const THEMES={
+  'bench-light':{dark:false,bg:'#e9edf1',surface:'#f9fafb',board:'#ffffff',ink:'#15202d',muted:'#586676',line:'#cdd5dd',grid:'#b9c3ce',accent:'#b4530e',err:'#b3261e',
+    p:['#1d65b3','#c2410c','#177a48','#8a3db3','#9a6c05','#0f7f8a','#c22a63','#5a6472']},
+  'bench-dark':{dark:true,bg:'#0f151c',surface:'#161f29',board:'#111922',ink:'#e2e8ee',muted:'#93a1b0',line:'#2a3643',grid:'#3a4856',accent:'#e8904a',err:'#ff8a80',
+    p:['#6fb1f5','#f58a5a','#5bd08f','#c592ee','#e3b94a','#4fcfd9','#f57aa8','#a9b4c2']},
+  'sol-light':{dark:false,bg:'#eee8d5',surface:'#fdf6e3',board:'#fdf6e3',ink:'#073642',muted:'#657b83',line:'#ddd6c1',grid:'#93a1a1',accent:'#cb4b16',err:'#dc322f',
+    p:['#268bd2','#dc322f','#859900','#6c71c4','#b58900','#2aa198','#d33682','#586e75']},
+  'sol-dark':{dark:true,bg:'#002b36',surface:'#073642',board:'#002b36',ink:'#eee8d5',muted:'#839496',line:'#0e4753',grid:'#586e75',accent:'#cb4b16',err:'#dc322f',
+    p:['#268bd2','#dc322f','#859900','#6c71c4','#b58900','#2aa198','#d33682','#93a1a1']},
+  'nord':{dark:true,bg:'#2e3440',surface:'#3b4252',board:'#2e3440',ink:'#eceff4',muted:'#aab4c5',line:'#4c566a',grid:'#616e88',accent:'#88c0d0',err:'#e08a94',
+    p:['#d08770','#a3be8c','#b48ead','#ebcb8b','#bf616a','#81a1c1','#8fbcbb','#d8dee9']},
+  'cat-latte':{dark:false,bg:'#dce0e8',surface:'#e6e9ef',board:'#eff1f5',ink:'#4c4f69',muted:'#6c6f85',line:'#bcc0cc',grid:'#9ca0b0',accent:'#8839ef',err:'#d20f39',
+    p:['#1e66f5','#fe640b','#40a02b','#ea76cb','#df8e1d','#179299','#e64553','#7c7f93']},
+  'cat-frappe':{dark:true,bg:'#232634',surface:'#303446',board:'#292c3c',ink:'#c6d0f5',muted:'#a5adce',line:'#414559',grid:'#626880',accent:'#ca9ee6',err:'#e78284',
+    p:['#8caaee','#ef9f76','#a6d189','#f4b8e4','#e5c890','#81c8be','#ea999c','#949cbb']},
+  'cat-macchiato':{dark:true,bg:'#181926',surface:'#24273a',board:'#1e2030',ink:'#cad3f5',muted:'#a5adcb',line:'#363a4f',grid:'#5b6078',accent:'#c6a0f6',err:'#ed8796',
+    p:['#8aadf4','#f5a97f','#a6da95','#f5bde6','#eed49f','#8bd5ca','#ee99a0','#939ab7']},
+  'cat-mocha':{dark:true,bg:'#11111b',surface:'#1e1e2e',board:'#181825',ink:'#cdd6f4',muted:'#a6adc8',line:'#313244',grid:'#585b70',accent:'#cba6f7',err:'#f38ba8',
+    p:['#89b4fa','#fab387','#a6e3a1','#f5c2e7','#f9e2af','#94e2d5','#eba0ac','#9399b2']}
+};
+const TKEY='phasor-bench-theme', TVARS=['bg','surface','board','ink','muted','line','grid','accent','err'];
+const mixHex=(a,b,t)=>'#'+[1,3,5].map(i=>Math.round(parseInt(a.substr(i,2),16)*(1-t)+parseInt(b.substr(i,2),16)*t).toString(16).padStart(2,'0')).join('');
+function applyTheme(id){
+  const st=document.documentElement.style, th=THEMES[id];
+  if(!th){
+    for(const k of TVARS) st.removeProperty('--'+k);
+    st.removeProperty('--accent-soft'); for(let i=1;i<=8;i++) st.removeProperty('--p'+i);
+    st.removeProperty('color-scheme'); id='system';
+  } else {
+    for(const k of TVARS) st.setProperty('--'+k,th[k]);
+    st.setProperty('--accent-soft',mixHex(th.surface,th.accent,th.dark?0.24:0.18));
+    th.p.forEach((c,i)=>st.setProperty('--p'+(i+1),c));
+    st.setProperty('color-scheme',th.dark?'dark':'light');
+  }
+  $('theme').value=id;
+  try{ localStorage.setItem(TKEY,id); }catch(_){}
+}
+$('theme').addEventListener('change',ev=>applyTheme(ev.target.value));
+{ let saved='system'; try{ saved=localStorage.getItem(TKEY)||'system'; }catch(_){} applyTheme(saved); }
+
+window.__bench={analyse,srcPhasor,get state(){return state;},get cur(){return cur;},C};
+syncFreq(true); renderInspector(); refresh(false);
+try{ let lastW=0; new ResizeObserver(()=>{ const w=$('wave').parentNode.clientWidth; if(w!==lastW){ lastW=w; if(cur) renderWave(); } }).observe($('p-wave')); }catch(_){}
+})();
+</script>
+
+</body></html>
